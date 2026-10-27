@@ -22,6 +22,10 @@ var original_wheel: MeshInstance3D
 var original_rudder_base := Basis.IDENTITY
 var original_wheel_base := Basis.IDENTITY
 var drum_efficiency := 0.94
+var rig_sails: Array[MeshInstance3D] = []
+var rig_yards: Array[MeshInstance3D] = []
+var rig_sail_basis: Array[Basis] = []
+var rig_yard_basis: Array[Basis] = []
 func toggle_steering_rope() -> void:
  steering_rope_intact = not steering_rope_intact
  steering_connection_changed.emit(steering_rope_intact)
@@ -76,6 +80,19 @@ func _ready() -> void:
   if original_wheel != null:
    original_wheel_base = original_wheel.transform.basis
   print("APEX original rig controls: rudder=",original_rudder != null," wheel=",original_wheel != null)
+ # Bind the existing paired meshes by their imported name suffixes.
+ if imported != null:
+  for mast_no in range(1,4):
+   for level_no in range(1,4):
+    var suffix := str(mast_no) + "_" + str(level_no)
+    var existing_yard := _find_suffix(imported,"Yard " + suffix)
+    var existing_sail := _find_suffix(imported,"Square sail " + suffix)
+    if existing_yard != null and existing_sail != null:
+     rig_yards.append(existing_yard)
+     rig_sails.append(existing_sail)
+     rig_yard_basis.append(existing_yard.transform.basis)
+     rig_sail_basis.append(existing_sail.transform.basis)
+  print("APEX original sail-yard pairs found: ",rig_yards.size())
  # Existing model contains eight rig yards. Do not create floating duplicate box yards.
  for z in [-6.5,3.1,10.8]:
   var pivot := Node3D.new()
@@ -90,6 +107,14 @@ func _find_mesh(root: Node, exact_name: String) -> MeshInstance3D:
   var found := _find_mesh(child,exact_name)
   if found != null:
    return found
+ return null
+func _find_suffix(node: Node, ending: String) -> MeshInstance3D:
+ if node is MeshInstance3D and node.name.ends_with(ending):
+  return node as MeshInstance3D
+ for child in node.get_children():
+  var match_mesh := _find_suffix(child,ending)
+  if match_mesh != null:
+   return match_mesh
  return null
 func _process(delta: float) -> void:
  if vessel == null: return
@@ -106,6 +131,10 @@ func _process(delta: float) -> void:
   original_wheel.transform.basis = original_wheel_base * Basis(Vector3.FORWARD,wheel_angle)
  var trim: float = clamp(float(vessel.get("sheet_angle")), -1.5, 1.5)
  for yard in yards: yard.rotation.y = lerp_angle(yard.rotation.y, trim*.55, min(1.0,delta*1.6))
+ for i in rig_yards.size():
+  var turn := Basis(Vector3.UP, trim * 0.12)
+  rig_yards[i].transform.basis = rig_yard_basis[i] * turn
+  rig_sails[i].transform.basis = rig_sail_basis[i] * turn
  for door in doors: door.rotation.y = lerp_angle(door.rotation.y, deg_to_rad(85) if door_open else 0.0, min(1.0,delta*3.0))
  for hatch in hatches: hatch.rotation.x = lerp_angle(hatch.rotation.x, deg_to_rad(75) if hatch_open else 0.0, min(1.0,delta*3.0))
 func toggle_doors() -> void: door_open = not door_open
