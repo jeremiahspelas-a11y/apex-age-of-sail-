@@ -99,6 +99,31 @@ jobs:
             await page.screenshot({ path: 'visual-qa/initial.png' });
             await page.waitForTimeout(5000);
             await page.screenshot({ path: 'visual-qa/after-5s.png' });
+            // Touch-control regression: enable fly mode and exercise both sticks concurrently.
+            const centerLeft = { x: 92, y: 440 };
+            const centerRight = { x: 868, y: 440 };
+            await page.mouse.click(80, 80);
+            await page.waitForTimeout(250);
+            const multitouch = await page.evaluate(() => {
+              const canvas = document.querySelector('canvas');
+              if (!canvas) return { ok: false, reason: 'canvas missing' };
+              const rect = canvas.getBoundingClientRect();
+              const point = (x, y) => ({ x: rect.left + x, y: rect.top + y });
+              const a = point(92, 440), b = point(868, 440);
+              const makeTouch = (id,p,target) => new Touch({identifier:id,target,clientX:p.x,clientY:p.y,pageX:p.x,pageY:p.y});
+              const emit = (type, changed, touches) => canvas.dispatchEvent(new TouchEvent(type,{bubbles:true,cancelable:true,changedTouches:changed,targetTouches:touches,touches}));
+              const t1=makeTouch(1,a,canvas), t2=makeTouch(2,b,canvas);
+              const t1m=makeTouch(1,point(92,390),canvas),t2m=makeTouch(2,point(914,415),canvas);
+              emit('touchstart',[t1],[t1]); emit('touchstart',[t2],[t1,t2]);
+              emit('touchmove',[t1m],[t1m,t2]); emit('touchmove',[t2m],[t1m,t2m]);
+              emit('touchend',[t1m],[t2m]); emit('touchend',[t2m],[]);
+              return {ok:true, twoFingersInjected:true};
+            });
+            await page.waitForTimeout(500);
+            await page.screenshot({ path: 'visual-qa/fly-thumbsticks.png' });
+            require('fs').writeFileSync('visual-qa/touch-test.json', JSON.stringify(multitouch,null,2));
+            if (!multitouch.ok) throw new Error('Dual touch simulation could not run');
+
             const canvas = await page.locator('canvas').count();
             require('fs').writeFileSync('visual-qa/report.json', JSON.stringify({ canvas, errors }, null, 2));
             await browser.close();
