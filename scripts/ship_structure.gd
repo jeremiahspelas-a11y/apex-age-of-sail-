@@ -31,6 +31,37 @@ func _ready() -> void:
   shape.radius=.34
   shape.height=9.0
   add_shape("Mast",shape,Vector3(0,5,z))
+ # Construction pass 1: coherent ship-interior frame, beam and keelson skeleton.
+ # Visual members belong to the vessel transform rather than world-space decoration.
+ build_timber_skeleton()
+
+func build_timber_skeleton() -> void:
+ var material := StandardMaterial3D.new()
+ material.albedo_color = Color(0.39,0.23,0.12)
+ material.roughness = 0.93
+ # Longitudinal keelson mechanically locates the floor timbers.
+ add_timber("Keelson", Vector3(0.54,0.44,21.0), Vector3(0,-1.26,0),material)
+ # Eleven transverse timber stations: paired uprights, floor timbers and deck beams.
+ # They are deliberately below the imported sail/rigging geometry.
+ for station in 11:
+  var z: float = -9.5 + float(station)*1.9
+  add_timber("Floor_%02d" % station,Vector3(4.3,0.24,0.21),Vector3(0,-1.2,z),material)
+  for side in [-1,1]:
+   add_timber("Frame_%02d_%s" % [station,"P" if side < 0 else "S"],Vector3(0.24,1.62,0.23),Vector3(float(side)*2.15,-0.31,z),material)
+  add_timber("DeckBeam_%02d" % station,Vector3(4.45,0.23,0.24),Vector3(0,0.32,z),material)
+ for side in [-1,1]:
+  add_timber("Stringer_%s" % ["P" if side < 0 else "S"],Vector3(0.2,0.22,20.0),Vector3(float(side)*2.18,-0.46,0),material)
+
+func add_timber(n:String,size:Vector3,pos:Vector3,mat:Material) -> void:
+ var member := MeshInstance3D.new()
+ member.name = n
+ var timber := BoxMesh.new()
+ timber.size = size
+ member.mesh = timber
+ member.material_override = mat
+ member.position = pos
+ add_child(member)
+
 func add_box(n:String,size:Vector3,pos:Vector3) -> void:
  var shape := BoxShape3D.new()
  shape.size=size
