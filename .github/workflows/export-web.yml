@@ -63,6 +63,9 @@ jobs:
           assert 'for station in 11:' in s, 'Frame stations missing'
           assert 'var beam: float = 2.22 * (1.0 - 0.38*taper)' in s, 'Tapered hull stations missing'
           assert 'member.position = pos' in s, 'Structural members not attached to local hull geometry'
+          assert 'build_hull_strakes()' in s, 'Hull planking build not invoked'
+          assert 'for band in 8:' in s, 'Expected eight plank bands per side'
+          assert 'mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)' in s, 'Continuous indexed hull surfaces missing'
           print('PASS: timber construction and curved station logic is present')
           PY
       - name: Browser graphics smoke test and screenshots
