@@ -26,11 +26,14 @@ func _ready() -> void:
   ramp.position=Vector3(0,-.5,z+1.1)
   ramp.rotation.x=-.43
   boat.add_child.call_deferred(ramp)
- for z in [-5.5,1.2,8.0]:
+ # Colliders follow the measured original GLB mast positions and lengths.
+ # Foremast z=-6.5 (y center 10.15, height 17.7), mainmast z=3.1
+ # (y center 11.65, height 20.7), mizzen z=10.8 (y center 7.65, height 12.7).
+ for mast in [[-6.5,10.15,17.7,0.5],[3.1,11.65,20.7,0.5],[10.8,7.65,12.7,0.36]]:
   var shape := CylinderShape3D.new()
-  shape.radius=.34
-  shape.height=9.0
-  add_shape("Mast",shape,Vector3(0,5,z))
+  shape.radius = mast[3] * 0.5
+  shape.height = mast[2]
+  add_shape("Mast",shape,Vector3(0,mast[1],mast[0]))
  # Construction pass 1: coherent ship-interior frame, beam and keelson skeleton.
  # Visual members belong to the vessel transform rather than world-space decoration.
  build_timber_skeleton()
