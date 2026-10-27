@@ -61,9 +61,16 @@ func _physics_process(delta: float) -> void:
   var target_roll: float = clampf(atan2(port_height-starboard_height,3.0),-0.20,0.20)
   _visual_pitch = lerpf(_visual_pitch,target_pitch,clampf(delta*1.7,0.0,1.0))
   _visual_roll = lerpf(_visual_roll,target_roll,clampf(delta*1.7,0.0,1.0))
-  var apparent_wind := wind_world.length()
-  var target_speed := apparent_wind * 0.10 * reef_fraction * maxf(0.15,absf(sin(sheet_angle)))
-  _controlled_speed = move_toward(_controlled_speed,target_speed,delta * 0.2)
+  # Apparent wind rather than unconditional forward thrust: square rig cannot sail in irons.
+  var bow: Vector3 = -global_basis.z.normalized()
+  var relative_wind: Vector3 = wind_world - bow * _controlled_speed
+  var wind_speed: float = relative_wind.length()
+  var incoming: Vector3 = -relative_wind.normalized() if wind_speed > 0.01 else Vector3.ZERO
+  var off_bow: float = rad_to_deg(acos(clampf(bow.dot(incoming),-1.0,1.0))) if wind_speed > 0.01 else 0.0
+  var point_of_sail: float = smoothstep(48.0,95.0,off_bow) * (1.0 - 0.22 * smoothstep(155.0,180.0,off_bow))
+  var trim_efficiency: float = clampf(1.0 - absf(absf(sheet_angle) - 0.55) * 0.42,0.25,1.0)
+  var target_speed: float = wind_speed * 0.18 * reef_fraction * point_of_sail * trim_efficiency
+  _controlled_speed = move_toward(_controlled_speed,target_speed,delta * (0.20 if target_speed >= _controlled_speed else 0.37))
   _controlled_heading += rudder_input * _controlled_speed * delta * 0.045
   rotation = Vector3(_visual_pitch,_controlled_heading,_visual_roll)
   global_position = p + (-global_basis.z * _controlled_speed * delta)
