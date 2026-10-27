@@ -8,6 +8,13 @@ var doors: Array[Node3D] = []
 var hatches: Array[Node3D] = []
 var door_open := false
 var hatch_open := false
+# Helm command is now expressed as a drum/rope/tiller kinematic transmission.
+# Full tension and hydrodynamic yaw physics remain on the engineering checklist.
+var wheel_angle := 0.0
+var wheel_drum_radius := 0.18
+var tiller_radius := 0.95
+var rope_travel := 0.0
+var actual_rudder_angle := 0.0
 func make_part(name: String, dimensions: Vector3, pos: Vector3, color: Color, collision := true) -> Node3D:
  var pivot := Node3D.new()
  pivot.name = name
@@ -44,9 +51,12 @@ func _ready() -> void:
   yards.append(make_part("TurningYard", Vector3(6.4,.19,.19), Vector3(0,9.5,z), Color(.38,.22,.10), false))
 func _process(delta: float) -> void:
  if vessel == null: return
- var rudder_angle: float = clamp(float(vessel.get("rudder_input")), -1.0, 1.0) * deg_to_rad(32)
- rudder.rotation.y = lerp_angle(rudder.rotation.y, rudder_angle, min(1.0,delta*3.0))
- wheel.rotation.z = lerp_angle(wheel.rotation.z, rudder_angle * 2.4, min(1.0,delta*3.0))
+ var desired_wheel_angle: float = clampf(float(vessel.get("rudder_input")),-1.0,1.0) * deg_to_rad(140.0)
+ wheel_angle = move_toward(wheel_angle,desired_wheel_angle,delta * 1.5)
+ rope_travel = wheel_angle * wheel_drum_radius
+ actual_rudder_angle = clampf(rope_travel / tiller_radius,-deg_to_rad(32.0),deg_to_rad(32.0))
+ rudder.rotation.y = actual_rudder_angle
+ wheel.rotation.z = wheel_angle
  var trim: float = clamp(float(vessel.get("sheet_angle")), -1.5, 1.5)
  for yard in yards: yard.rotation.y = lerp_angle(yard.rotation.y, trim*.55, min(1.0,delta*1.6))
  for door in doors: door.rotation.y = lerp_angle(door.rotation.y, deg_to_rad(85) if door_open else 0.0, min(1.0,delta*3.0))
