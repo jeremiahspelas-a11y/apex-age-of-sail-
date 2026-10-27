@@ -13,6 +13,15 @@ uniform vec3 waves[8];
 varying float crest;
 varying vec2 wave_world;
 varying float slope_strength;
+float group_envelope(int i, vec2 pos, float clock) {
+    float index = float(i);
+    float angle = radians(18.0 + index * 37.0);
+    vec2 direction = vec2(cos(angle),sin(angle));
+    float coordinate = dot(direction,pos);
+    float slow = sin(coordinate * (0.012 + index * 0.0011) - clock * (0.18 + index * 0.013) + index * 1.7);
+    float secondary = sin(coordinate * 0.027 + clock * 0.11 + index * 2.3);
+    return clamp(0.64 + 0.29 * slow + 0.16 * secondary,0.22,1.10);
+}
 void vertex() {
     vec2 pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
     vec3 displacement = vec3(0.0);
@@ -22,7 +31,7 @@ void vertex() {
         float k = 6.2831853 / max(waves[i].z, 0.01);
         float c = sqrt(9.8 / k);
         float wind_alignment = 0.78 + 0.22 * abs(dot(dir, normalize(wind_direction + vec2(0.0001))));
-        float amplitude = waves[i].y * storm_scale * wind_alignment;
+        float amplitude = waves[i].y * storm_scale * wind_alignment * group_envelope(i,pos,t);
         float phase = k * (dot(dir, pos) - c * t);
         displacement += vec3(dir.x * amplitude * cos(phase), amplitude * sin(phase), dir.y * amplitude * cos(phase));
     }
@@ -37,7 +46,7 @@ void vertex() {
         vec2 dir = vec2(cos(angle), sin(angle));
         float k = 6.2831853 / max(waves[i].z, 0.01);
         float c = sqrt(9.8 / k);
-        float a = waves[i].y * storm_scale * (0.78 + 0.22 * abs(dot(dir, normalize(wind_direction + vec2(0.0001)))));
+        float a = waves[i].y * storm_scale * (0.78 + 0.22 * abs(dot(dir, normalize(wind_direction + vec2(0.0001))))) * group_envelope(i,pos,t);
         float gradient = a * k * cos(k * (dot(dir, pos) - c * t));
         dhdx += dir.x * gradient;
         dhdz += dir.y * gradient;
