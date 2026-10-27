@@ -72,6 +72,7 @@ void fragment() {
     float animated_banding = sin(wave_world.x * 0.85 + wave_world.y * 0.34 - t * 1.9) * sin(wave_world.y * 1.15 + t * 1.4);
     ALBEDO = mix(deep_color.rgb, shallow_color.rgb, clamp(0.38 + crest * 0.58 + slope_strength * 0.7 + animated_banding * 0.045, 0.0, 1.0));
     ALBEDO = mix(ALBEDO, vec3(0.7, 0.83, 0.85), foam * 0.45);
-    ROUGHNESS = 0.12 + foam * 0.50 + storminess * 0.07;
-    METALLIC = 0.04;
+    // Avoid broad mirror-like glare on mobile, especially beneath moonlight.
+    ROUGHNESS = 0.38 + foam * 0.26 + storminess * 0.08;
+    METALLIC = 0.0;
 }
