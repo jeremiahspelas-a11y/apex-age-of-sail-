@@ -31,8 +31,6 @@ func _ready() -> void:
  var sky := Sky.new()
  sky_material = ProceduralSkyMaterial.new()
  sky_material.use_debanding = true
- # Visible sun disc, not only directional lighting.
- sky_material.use_sun = true
  sky.sky_material = sky_material
  env.sky = sky
  env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
