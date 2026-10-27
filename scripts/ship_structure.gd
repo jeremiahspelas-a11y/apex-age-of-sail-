@@ -244,6 +244,11 @@ func _audit_original_projection_meshes() -> void:
   if part == null or part.mesh == null:
    continue
   var local_center: Vector3 = original.to_local(part.to_global(part.mesh.get_aabb().get_center()))
+  # Report high visible projections as well as overboard pieces; do not hide true rigging.
+  var local_aabb: AABB = part.mesh.get_aabb()
+  var local_size: Vector3 = local_aabb.size
+  if local_center.y > 2.5 and local_center.y < 8.0 and (local_size.y > 0.8 or local_size.z > 1.0):
+   print("APEX DECK PROJECTION ",part.name," center=",local_center," size=",local_size)
   if absf(local_center.x) > 3.8 or local_center.z < -15.0 or local_center.z > 15.0:
    if examined < 24:
     print("APEX PROJECTION AUDIT ",part.name," at ",local_center)

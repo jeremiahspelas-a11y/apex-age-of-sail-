@@ -9,6 +9,12 @@ Updated: 2026-10-27. This is the source of truth for what was *actually* verifie
 - Audit confirms both named original hulls before the hide is allowed; no bow/stern caps claimed as repaired until screenshot inspection. Protruding spars remain unresolved, require per-mesh origin audit.
 - Acceptance: Godot CI passes with 288 meshes, exactly eight original sail/yard pairs; screenshot confirms noon, double hull reduction, and no new visual seams. Android verification pending.
 
+## Verified original projection audit — October 27
+- CI workflow `40602709174` **SUCCESS** (commit `f5008fc6`): the original GLB has both historical fairing-study and V6 closed hull meshes; at runtime the older one was successfully hidden.
+- Actual protrusion log recorded **exactly one mesh outside the coarse hull bounds:** `legacy_053_Bowsprit`, center `(0.002198, 3.55212, -15.69901)`. A bowsprit is historical and may be correct; do not delete it without measuring its root and orientation.
+- Those small brown projections above deck are still visually unresolved: hull-boundary search could not identify their names. Next audit now reports mesh names/centers/sizes for vertical mid-deck projections, separately from legitimate far-forward bowsprit.
+- **No bow/stern completion claim:** V6 name and visibility are not proof the mesh is manifold or visually sealed. Require camera close-ups.
+
 ## 2026-10-27 structural gate — verified status and reuse candidates
 - Build `40602159670` on `7883a11d` **FAILED** due to Godot type inference of `local_center`; correction `e09ec1ae` is **queued**, not verified. Do not attempt further hull modifications until headless import + browser screenshot pass.
 - Confirmed source: `V6_closed_hull` remains, earlier `legacy_000_Fairing-study wooden hull` is hidden on scene readiness if both nodes exist; final bow/stern closing is **NOT** established by this visibility choice. Before calling this resolved, verify mesh watertightness/visual ends by 3D views and model topology.
