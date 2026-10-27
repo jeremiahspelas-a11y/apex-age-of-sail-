@@ -37,6 +37,7 @@ func _ready() -> void:
  # Remove the overlapping obsolete fairing-study hull ONLY when the newer
  # V6 closed hull is present. This preserves the original late-period ship rig.
  _prefer_closed_original_hull()
+ _audit_original_projection_meshes()
  # Construction pass 1: coherent ship-interior frame, beam and keelson skeleton.
  # Visual members belong to the vessel transform rather than world-space decoration.
  build_timber_skeleton()
@@ -231,3 +232,20 @@ func _prefer_closed_original_hull() -> void:
   print("APEX hull silhouette: original V6 closed hull retained; outdated overlapping legacy fairing hull hidden")
  else:
   print("APEX hull silhouette: no hull removed; closed=",closed_hull != null," legacy=",old_hull != null)
+
+func _audit_original_projection_meshes() -> void:
+ # Non-destructive: report protruding components before deciding what to hide.
+ var original := boat.get_node_or_null("HullVisual")
+ if original == null:
+  return
+ var examined := 0
+ for child in original.find_children("*","MeshInstance3D",true,false):
+  var part := child as MeshInstance3D
+  if part == null or part.mesh == null:
+   continue
+  var local_center := original.to_local(part.to_global(part.mesh.get_aabb().get_center()))
+  if absf(local_center.x) > 3.8 or local_center.z < -15.0 or local_center.z > 15.0:
+   if examined < 24:
+    print("APEX PROJECTION AUDIT ",part.name," at ",local_center)
+   examined += 1
+ print("APEX PROJECTION AUDIT outlying mesh count: ",examined)
