@@ -2,6 +2,25 @@
 
 Updated: 2026-10-27. This is the source of truth for what was *actually* verified.
 
+## Active visual-defect register — Android capture 1000079261.mp4 (20.9 s, user-provided prior-build footage)
+Evidence interpretation: source video shows the *preceding* deployed version, not necessarily current HEAD; sampled seven evenly spaced frames covering the clip. This is user-captured Android visual evidence, **not** evidence that current later commits failed. Never mark fixed merely because CI passes.
+
+| ID | Observed defect or question | Diagnosis / target fix | Verification requirement | Status |
+| --- | --- | --- | --- | --- |
+| VIS-01 | Water has long bright linear streaks and large saturated patches across several camera angles | Check ocean roughness, foam and wave shading; preserve wave dynamics and night reflection | Comparison of equivalent camera/time screenshots after shader deployment, with no broad white bands | OPEN — source video predates a44e17ac; shader commit's run 40599856228 cancelled, so unverified |
+| VIS-02 | Sails look rigid and geometrically flat from front/side | Keep eight original sail meshes and paired yards; add modest curvature/cloth behavior only after transforms confirmed | All eight pairs attached and visibly responding to sheet input without gaps | OPEN — 4543a49e CI passed (run 40599525624), but no trim-input behavior test |
+| VIS-03 | Sail plan is square-panel dominant and not yet visually credible for the 1670–1690 armed pinnace target | Research period-compatible sail proportions and mizzen without replacing base ship | Historical design comparison and multi-angle Android approval | OPEN — preservation rule applies |
+| VIS-04 | Bright polygonal cloud puffs, sometimes intruding into HUD area | Clouds are seven scaled spheres per bank; improve alpha, placement, depth and silhouette | Capture day, dusk, night with sky visible; no obvious repeated polygon clusters or UI occlusion | OPEN |
+| VIS-05 | Very dark/blank horizon sky despite brightly lit sails and water | Audit moon/sun direction, ambient, sky shader, exposure and phase synchrony | Day/night time-lapse with readable moonlit hull and believable sky transition | OPEN — 1a8f821d built, visual regression not measured |
+| VIS-06 | Protruding long beams/rod-like forms visible over sea to port and starboard | Trace exact GLB mesh names vs stays/yard geometry and underwater reflections; don't delete speculatively | Report original mesh IDs, positions and multi-angle evidence; visually remove only accidental duplicates | INVESTIGATE |
+| VIS-07 | Hull appears low-detail/boxy at some views; original exterior must not be replaced | Verify imported hull mesh silhouette and any extra procedural geometry overlap | Distinct side, bow, stern, oblique screenshots and hull bounds | INVESTIGATE |
+| VIS-08 | Tiny top HUD, action controls and bottom walking controls have poor readability on portrait phone | Make responsive safe areas, larger touch targets, avoid browser chrome | Android portrait screenshot showing non-overlapping legible touch controls | OPEN |
+| QA-01 | Last commit cd316398 only adds GLB sail-yard pairing *audit*, not new rendering | Log eight matching pairs and fail missing pairs; also test input-driven angle and unchanged attachments separately | CI import plus rig audit success; report pair count explicitly | PENDING — run 40600034828 in progress on last check |
+| QA-02 | Older ledger claimed GLB rudder and wheel control as connected, but visible movement not measured | Inspect runtime bind log and drive rudder with port/starboard input | Observed original blade deflection and helm movement | UNVERIFIED |
+| QA-03 | Consecutive commits cancel CI runs; prevents actual release verification | Batch code, tests and ledger in one commit; compare screenshot artifacts to commit ID | Every change linked to commit SHA, workflow conclusion, screenshot, user footage revision | ACTIVE PROCESS RULE |
+
+Priority: first make QA deterministic and establish exact deployed SHA, then fix glaring water/sky issues, then rig attachment/pivots, then cloth and period shaping. Do not interpret source-only audits as visual fixes.
+
 ## Evidence grades
 - **COMMITTED**: source exists on main. Does not prove it compiles.
 - **BUILD PASS**: Godot import/export and 100-frame headless smoke test pass.
