@@ -17,6 +17,10 @@ var tiller_radius := 0.95
 var rope_travel := 0.0
 var actual_rudder_angle := 0.0
 var steering_rope_intact := true
+var original_rudder: MeshInstance3D
+var original_wheel: MeshInstance3D
+var original_rudder_base := Basis.IDENTITY
+var original_wheel_base := Basis.IDENTITY
 var drum_efficiency := 0.94
 func toggle_steering_rope() -> void:
  steering_rope_intact = not steering_rope_intact
@@ -62,6 +66,16 @@ func _ready() -> void:
   doors.append(make_part("HingedDoor", Vector3(1.02,1.68,.085), Vector3(-.45,-.01,z), Color(.46,.27,.12)))
  for z in [-4.0,2.0]:
   hatches.append(make_part("OpeningHatch", Vector3(1.15,.1,1.2), Vector3(0,1.39,z), Color(.46,.28,.13)))
+ # Match only known original mesh identifiers; do not replace or reparent the GLB.
+ var imported := vessel.get_node_or_null("HullVisual")
+ if imported != null:
+  original_rudder = _find_mesh(imported,"rudder_blade")
+  original_wheel = _find_mesh(imported,"V9_helm_wheel_hub")
+  if original_rudder != null:
+   original_rudder_base = original_rudder.transform.basis
+  if original_wheel != null:
+   original_wheel_base = original_wheel.transform.basis
+  print("APEX original rig controls: rudder=",original_rudder != null," wheel=",original_wheel != null)
  # Existing model contains eight rig yards. Do not create floating duplicate box yards.
  for z in [-6.5,3.1,10.8]:
   var pivot := Node3D.new()
@@ -69,6 +83,14 @@ func _ready() -> void:
   pivot.position = Vector3(0,9.5,z)
   add_child(pivot)
   yards.append(pivot)
+func _find_mesh(root: Node, exact_name: String) -> MeshInstance3D:
+ if root is MeshInstance3D and root.name == exact_name:
+  return root as MeshInstance3D
+ for child in root.get_children():
+  var found := _find_mesh(child,exact_name)
+  if found != null:
+   return found
+ return null
 func _process(delta: float) -> void:
  if vessel == null: return
  var desired_wheel_angle: float = clampf(float(vessel.get("rudder_input")),-1.0,1.0) * deg_to_rad(140.0)
@@ -78,6 +100,10 @@ func _process(delta: float) -> void:
  actual_rudder_angle = move_toward(actual_rudder_angle,demanded_angle,delta * 0.42) if steering_rope_intact else move_toward(actual_rudder_angle,0.0,delta * 0.12)
  rudder.rotation.y = actual_rudder_angle
  wheel.rotation.z = wheel_angle
+ if original_rudder != null:
+  original_rudder.transform.basis = original_rudder_base * Basis(Vector3.UP,actual_rudder_angle)
+ if original_wheel != null:
+  original_wheel.transform.basis = original_wheel_base * Basis(Vector3.FORWARD,wheel_angle)
  var trim: float = clamp(float(vessel.get("sheet_angle")), -1.5, 1.5)
  for yard in yards: yard.rotation.y = lerp_angle(yard.rotation.y, trim*.55, min(1.0,delta*1.6))
  for door in doors: door.rotation.y = lerp_angle(door.rotation.y, deg_to_rad(85) if door_open else 0.0, min(1.0,delta*3.0))

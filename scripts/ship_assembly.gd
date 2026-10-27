@@ -13,6 +13,7 @@ func _ready() -> void:
  var mechanisms := boat.get_node_or_null("Mechanisms")
  if mechanisms != null and mechanisms.has_signal("steering_connection_changed"):
   mechanisms.steering_connection_changed.connect(_on_steering_connection_changed)
+  assemblies["SteeringRope"] = {"node":mechanisms,"connected":bool(mechanisms.get("steering_rope_intact")),"parent":"Mechanisms"}
 
 func verify_assembly() -> bool:
  var good := true
@@ -40,4 +41,6 @@ func _on_steering_connection_changed(connected: bool) -> void:
   return
  # A broken steering rope disconnects steering, NOT the whole helm assembly.
  assemblies["Mechanisms"]["steering_rope_connected"] = connected
+ if assemblies.has("SteeringRope"):
+  assemblies["SteeringRope"]["connected"] = connected
  assembly_changed.emit("SteeringRope",connected)

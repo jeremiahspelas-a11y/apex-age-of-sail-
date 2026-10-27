@@ -10,6 +10,11 @@ Updated: 2026-10-27. This is the source of truth for what was *actually* verifie
 - **USER VERIFIED**: user confirms it works on their Android phone.
 Never mark visually complete based on a GitHub build or commit alone.
 
+## Original-rig control binding — next engineering step
+- Previous sun/moon, material and preservation change commit 1a8f821d: GitHub Actions run 40597627425 **SUCCESS** (build, browser and deployment), Android visual confirmation remains pending.
+- Control integration now binds working rudder and helm spin to existing named GLB `rudder_blade` and `V9_helm_wheel_hub` meshes where found, leaving imported geometry intact. Missing mesh names are safe no-op with an explicit runtime log; steering calculation persists. SteeringRope added as separately queryable initial-state registry component with signal sync.
+- GLB rudder and wheel mesh axes/rotation behavior still require screenshot and browser verification; the original eight yard/sail pairs remain untouched until pivots and pairing are measured.
+
 ## Screenshot-driven night/day rig preservation change — October 27
 - Android screenshot shows *nighttime* dark silhouette with poor moonlit readability, duplicate-looking spars and stiff original square sails. User confirms darkness is from desired procedural day/night weather; **retain dynamic cycle** rather than force full daylight.
 - This single atomic change introduces opposing sun/moon directional lights and time-varying ambient illumination, keeping storm influence; improves original material base tones and removes multiplicative dark noise; removes redundant generated box-shaped wheel/rudder/yard visuals while retaining steering state pivots; prevents incorrectly scaled duplicate exterior procedural shell and moves camera out slightly.
