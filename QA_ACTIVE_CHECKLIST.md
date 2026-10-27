@@ -2,6 +2,13 @@
 
 Updated: 2026-10-27. This is the source of truth for what was *actually* verified.
 
+## Ship silhouette restoration and noon lighting — 2026-10-27
+- New Android screenshots show bow/stern outline appears blocky/open, non-period-looking protruding rods, flat canvas, repeating clouds, and mirror-like blue water. **These are now the most urgent visual priorities**; rig and gameplay features are paused. Screenshots are evidence for the user-visible deployed version, not necessarily this commit.
+- The imported GLB contains both `legacy_000_Fairing-study wooden hull` and `V6_closed_hull`; keep the latter and hide the overlapping older fairing-study mesh only when both are found. This is a non-destructive test of whether that duplicate causes the ugly bow and stern. If the old fairing proved necessary, revert this specific visibility setting, not the full ship.
+- Set time to **12:00 noon** and correct sun's declination: at noon the sun ray points downward rather than grazing the ship horizontally. Retain the moving sun/moon, clouds, storm and wind cycle. Increase first long ocean swell lengths and amplitudes (115m/0.67m and 70m/0.45m), reduce high frequency chop; CPU wave math and GPU shader read from one shared parameter array.
+- Audit confirms both named original hulls before the hide is allowed; no bow/stern caps claimed as repaired until screenshot inspection. Protruding spars remain unresolved, require per-mesh origin audit.
+- Acceptance: Godot CI passes with 288 meshes, exactly eight original sail/yard pairs; screenshot confirms noon, double hull reduction, and no new visual seams. Android verification pending.
+
 ## Daylight-first procedural world and audit maintenance — October 27
 - User decision: **start at 10:00 AM**, with clear useful daylight, but preserve a progressing procedural 24-hour sun/moon/ambient cycle (6 AM sunrise, 6 PM sunset under the simplified sine model). Weather/cloud/wind stay procedural. No fixed perpetual daylight.
 - Updated `scripts/weather_controller.gd` to initialize phase from exported `starting_hour=10.0` and removed old pre-dawn solar phase offset. Updated `scripts/audit_original_rig.gd` to remove stale statements claiming old mast coordinates and an active duplicate procedural hull; these had already been corrected in code.

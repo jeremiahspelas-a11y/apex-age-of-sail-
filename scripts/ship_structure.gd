@@ -34,6 +34,9 @@ func _ready() -> void:
   shape.radius = mast[3] * 0.5
   shape.height = mast[2]
   add_shape("Mast",shape,Vector3(0,mast[1],mast[0]))
+ # Remove the overlapping obsolete fairing-study hull ONLY when the newer
+ # V6 closed hull is present. This preserves the original late-period ship rig.
+ _prefer_closed_original_hull()
  # Construction pass 1: coherent ship-interior frame, beam and keelson skeleton.
  # Visual members belong to the vessel transform rather than world-space decoration.
  build_timber_skeleton()
@@ -216,3 +219,15 @@ func add_shape(n:String,shape:Shape3D,pos:Vector3) -> void:
  collision.shape=shape
  collision.position=pos
  boat.add_child.call_deferred(collision)
+
+func _prefer_closed_original_hull() -> void:
+ var original := boat.get_node_or_null("HullVisual")
+ if original == null:
+  return
+ var closed_hull := original.find_child("V6_closed_hull",true,false) as MeshInstance3D
+ var old_hull := original.find_child("legacy_000_Fairing-study wooden hull",true,false) as MeshInstance3D
+ if closed_hull != null and old_hull != null:
+  old_hull.visible = false
+  print("APEX hull silhouette: original V6 closed hull retained; outdated overlapping legacy fairing hull hidden")
+ else:
+  print("APEX hull silhouette: no hull removed; closed=",closed_hull != null," legacy=",old_hull != null)

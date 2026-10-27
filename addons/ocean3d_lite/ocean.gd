@@ -6,10 +6,10 @@ var storm_scale := 1.0
 ## Direction (degrees), amplitude (m), wavelength (m). Eight scale bands, deterministic.
 ## Long swell overlaps local wind waves and shorter chop for non-repeating groups.
 var waves := [
- Vector3(12,0.48,82), Vector3(41,0.31,48),
- Vector3(142,0.23,28), Vector3(111,0.17,17),
- Vector3(69,0.11,10), Vector3(204,0.075,6),
- Vector3(25,0.038,3.5), Vector3(163,0.018,2.2)
+ Vector3(12,0.67,115), Vector3(49,0.45,70),
+ Vector3(142,0.31,39), Vector3(111,0.19,22),
+ Vector3(69,0.10,12), Vector3(204,0.06,7),
+ Vector3(25,0.03,3.8), Vector3(163,0.014,2.4)
 ]
 func _physics_process(delta: float) -> void:
  time += delta

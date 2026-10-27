@@ -6,7 +6,7 @@ extends Node3D
 @onready var boat: RigidBody3D = get_parent().get_node("Boat")
 @onready var ocean: MeshInstance3D = get_parent().get_node("Ocean")
 ## Start at late morning with strong daylight, then advance continuously through night.
-@export_range(0.0,24.0,0.25) var starting_hour := 10.0
+@export_range(0.0,24.0,0.25) var starting_hour := 12.0
 var phase := 0.0
 var current_storm := 0.0
 var sun: DirectionalLight3D
@@ -110,7 +110,7 @@ func _process(delta: float) -> void:
  var daylight: float = sin(solar_phase)
  var day_strength: float = smoothstep(-0.10,0.22,daylight)
  var night_strength: float = 1.0 - smoothstep(-0.22,0.08,daylight)
- sun.rotation_degrees = Vector3(-90.0 + rad_to_deg(solar_phase), -35.0, 0.0)
+ sun.rotation_degrees = Vector3(-180.0 + rad_to_deg(solar_phase), -35.0, 0.0)
  sun.light_energy = (1.85-storm*0.5)*day_strength
  moon.rotation_degrees = Vector3(sun.rotation_degrees.x+180.0,sun.rotation_degrees.y,0.0)
  moon.light_energy = (0.36-storm*0.10)*night_strength

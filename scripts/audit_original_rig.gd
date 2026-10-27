@@ -31,6 +31,14 @@ func _initialize() -> void:
   return
  print("RIG PAIR PASS: eight preserved imported sail-yard pairs matched")
  print("RIG AUDIT original mesh count: ",mesh_count)
+ var legacy := _find_exact(root,"legacy_000_Fairing-study wooden hull")
+ var closed := _find_exact(root,"V6_closed_hull")
+ print("RIG HULL original overlapping meshes: legacy=",legacy != null," closed=",closed != null)
+ if legacy == null or closed == null:
+  push_error("RIG HULL requires the legacy and closed versions before selecting a preferred hull")
+  root.free()
+  quit(1)
+  return
  print("RIG AUDIT original bounds: ",bounds)
  print("RIG AUDIT categories: ",named_parts)
  if mesh_count < 200:
@@ -73,4 +81,13 @@ func _find_suffix(node: Node, ending: String) -> MeshInstance3D:
   var match_mesh := _find_suffix(child,ending)
   if match_mesh != null:
    return match_mesh
+ return null
+
+func _find_exact(node: Node, wanted: String) -> MeshInstance3D:
+ if node is MeshInstance3D and node.name == wanted:
+  return node as MeshInstance3D
+ for child in node.get_children():
+  var found := _find_exact(child,wanted)
+  if found != null:
+   return found
  return null
