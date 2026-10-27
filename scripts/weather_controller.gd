@@ -22,6 +22,7 @@ func _ready() -> void:
  sun.name = "WeatherSun"
  sun.light_energy = 1.45
  sun.shadow_enabled = true
+ sun.rotation_degrees = Vector3(-35.0,-35.0,0.0)
  add_child(sun)
  var world := WorldEnvironment.new()
  world.name = "WeatherEnvironment"
@@ -30,6 +31,8 @@ func _ready() -> void:
  var sky := Sky.new()
  sky_material = ProceduralSkyMaterial.new()
  sky_material.use_debanding = true
+ # Visible sun disc, not only directional lighting.
+ sky_material.use_sun = true
  sky.sky_material = sky_material
  env.sky = sky
  env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
