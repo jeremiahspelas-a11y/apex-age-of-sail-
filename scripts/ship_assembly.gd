@@ -21,7 +21,7 @@ func verify_assembly() -> bool:
    push_error("APEX master assembly missing required subassembly: " + name)
    good = false
  return good
-func is_connected(name: String) -> bool:
+func is_assembly_connected(name: String) -> bool:
  return assemblies.has(name) and bool(assemblies[name]["connected"])
 func set_connected(name: String, connected: bool) -> void:
  if not assemblies.has(name):
