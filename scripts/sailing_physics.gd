@@ -23,6 +23,13 @@ var _controlled_heading := 0.0
 var _controlled_speed := 0.0
 var _visual_roll := 0.0
 var _visual_pitch := 0.0
+var _yaw_velocity := 0.0
+var last_rudder_torque_nm := 0.0
+var effective_rudder_angle := 0.0
+@export var yaw_inertia_kg_m2 := 540000.0
+@export var yaw_damping_nm_per_rad_s := 145000.0
+@export var rudder_lift_slope := 3.1
+@export var rudder_stern_lever_m := 6.8
 var probes := [Vector3(-1.5,-0.7,-5.0), Vector3(1.5,-0.7,-5.0), Vector3(-1.5,-0.7,5.0), Vector3(1.5,-0.7,5.0)]
 func _ready() -> void:
  ocean = get_node_or_null(ocean_path)
@@ -77,7 +84,17 @@ func _physics_process(delta: float) -> void:
   var target_speed: float = wind_speed * 0.18 * reef_fraction * point_of_sail * trim_efficiency
   target_speed *= (1.0 - flooding * 0.75)
   _controlled_speed = move_toward(_controlled_speed,target_speed,delta * (0.20 if target_speed >= _controlled_speed else 0.37))
-  _controlled_heading += rudder_input * _controlled_speed * delta * 0.045
+  # Helm wheel -> drum -> rope -> rudder -> lateral water force -> yaw moment.
+  # This is an inertia-integrated steering slice while hull heave remains kinematic.
+  var mechanism := get_node_or_null("Mechanisms")
+  effective_rudder_angle = float(mechanism.rudder_angle_for_physics()) if mechanism != null else 0.0
+  var flow_squared: float = _controlled_speed * _controlled_speed
+  var rudder_cl: float = rudder_lift_slope * sin(effective_rudder_angle)
+  var lateral_force: float = 0.5 * water_density * rudder_area_m2 * flow_squared * rudder_cl
+  last_rudder_torque_nm = lateral_force * rudder_stern_lever_m
+  var yaw_acceleration: float = (last_rudder_torque_nm - yaw_damping_nm_per_rad_s * _yaw_velocity) / yaw_inertia_kg_m2
+  _yaw_velocity = clampf(_yaw_velocity + yaw_acceleration * delta,-0.24,0.24)
+  _controlled_heading += _yaw_velocity * delta
   rotation = Vector3(_visual_pitch,_controlled_heading,_visual_roll)
   global_position = p + (-global_basis.z * _controlled_speed * delta)
   return
