@@ -34,6 +34,7 @@ func _ready() -> void:
  # Construction pass 1: coherent ship-interior frame, beam and keelson skeleton.
  # Visual members belong to the vessel transform rather than world-space decoration.
  build_timber_skeleton()
+ build_hull_strakes()
 
 func build_timber_skeleton() -> void:
  var material := StandardMaterial3D.new()
@@ -61,6 +62,54 @@ func build_timber_skeleton() -> void:
 
  for side in [-1,1]:
   add_timber("Stringer_%s" % ["P" if side < 0 else "S"],Vector3(0.2,0.22,20.0),Vector3(float(side)*2.18,-0.46,0),material)
+
+func hull_station(z: float, side: float, height_fraction: float) -> Vector3:
+ # Provisional fairing curve. Final shape must come from surveyed hull lines.
+ var taper: float = pow(absf(z)/11.5,1.5)
+ var beam: float = 2.22 * (1.0-0.38*taper)
+ var deck_y: float = 0.32+0.22*taper
+ var t: float = clampf(height_fraction,0.0,1.0)
+ return Vector3(side*beam*(0.35+0.65*sin(t*PI*0.5)),lerpf(-1.35,deck_y,t),z)
+
+func build_hull_strakes() -> void:
+ # Continuous, double-sided outer planking panels follow the same station curve as the ribs.
+ # Panels are individually named so future fasteners/damage can address a single strake.
+ var plank_mat := StandardMaterial3D.new()
+ plank_mat.albedo_color = Color(0.37,0.20,0.105)
+ plank_mat.roughness = 0.89
+ plank_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+ for side in [-1,1]:
+  for band in 8:
+   var verts := PackedVector3Array()
+   var norms := PackedVector3Array()
+   var uvs := PackedVector2Array()
+   var idx := PackedInt32Array()
+   for station in 25:
+    var z: float = lerpf(-10.9,10.9,float(station)/24.0)
+    for edge in 2:
+     var t: float = float(band+edge)/8.0
+     verts.append(hull_station(z,float(side),t))
+     uvs.append(Vector2(float(station)/24.0*4.0,t*8.0))
+     norms.append(Vector3(float(side),0,0))
+   for station in 24:
+    var k: int = station*2
+    if side > 0:
+     idx.append_array(PackedInt32Array([k,k+2,k+1,k+1,k+2,k+3]))
+    else:
+     idx.append_array(PackedInt32Array([k,k+1,k+2,k+1,k+3,k+2]))
+   var arrays := []
+   arrays.resize(Mesh.ARRAY_MAX)
+   arrays[Mesh.ARRAY_VERTEX] = verts
+   arrays[Mesh.ARRAY_NORMAL] = norms
+   arrays[Mesh.ARRAY_TEX_UV] = uvs
+   arrays[Mesh.ARRAY_INDEX] = idx
+   var mesh := ArrayMesh.new()
+   mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+   var plank := MeshInstance3D.new()
+   plank.name = "HullStrake_%s_%02d" % ["P" if side < 0 else "S",band]
+   plank.mesh = mesh
+   plank.material_override = plank_mat
+   add_child(plank)
 
 func add_curved_frame(member_name: String, points: PackedVector3Array, radius: float, mat: Material) -> void:
  # Uses Godot's built-in procedural mesh API: no unlicensed third-party geometry.
