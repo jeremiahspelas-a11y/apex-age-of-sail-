@@ -15,6 +15,11 @@ Never mark visually complete based on a GitHub build or commit alone.
 - **Visual finding:** Both frames show a very dark ship with rigid sails; no visible clouds or sun from that camera angle; water now covers the image but has conspicuous bright streaks and an unnatural appearance. Do not certify cloud/sun appearance or ship geometry from these frames.
 - **Change in development sequence (user-directed):** Prioritize accurate ship **construction, connected geometry, deck mechanics and realistic sail/rigging shapes** ahead of exterior sailing physics and wind-force tuning. Keep current physics as a prototype; do not call it mechanically complete.
 
+## Reuse and research audit
+- Adopted: Godot native MeshInstance3D and CylinderMesh for curved rib stations; no external code licensing or plugin install needed. Godot's official procedural geometry guidance explains ArrayMesh and SurfaceTool for upcoming continuous hull shell: https://docs.godotengine.org/en/stable/tutorials/3d/procedural_geometry/index.html
+- Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
+- Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
+
 ## Current tracked work
 | ID | Feature | Status | Evidence / next required test |
 |---|---|---|---|
@@ -25,7 +30,7 @@ Never mark visually complete based on a GitHub build or commit alone.
 | SEA-01 | Distant ocean patches | COMMITTED 797a7c9c; build initially FAILED | Failure: missing horizon_patches declaration; fixed 828cd144. Verify export, edge-free horizon, patch seams and camera-follow |
 | SHIP-01 | Mechanical helm yaw force | BUILD PASS 99e836bd | Needs behavioral steering/rope-cut test and Android confirmation |
 | SHIP-02 | Flooding compartments | BUILD PASS on prior version | User screenshot shows FLOOD 0.0 t and buttons; needs breach/sink behavior test |
-| SHIP-03 | Floating ship geometry and detached-looking fittings | OPEN; interior timber skeleton COMMITTED 7fdd4a5e | 11 frame stations, floors, keelson, longitudinal stringers and deck beams now generated relative to boat; inspect build and interior screenshots; not yet a watertight hull or fastener graph |
+| SHIP-03 | Floating ship geometry and detached-looking fittings | OPEN; curved rib stations COMMITTED ed84828c | 11 provisional hull stations now use curved ribs (8 segments per side), tapered half-beam and sheer plus keelson/stringers/deck beams; still no certified lines, sealed shell or fastener graph. Godot/browser render check pending |
 | SHIP-04 | Real sail cloth geometry, thickness, aero forces and rigging | OPEN | Replace static planar sails and verify mast/yard attachments |
 | QA-03 | Automatic visual assertions, not only screenshot generation | OPEN | Add horizon, sun, cloud, HUD, ship silhouette and sail motion assertions |
 | QA-04 | Mobile Android 30 FPS performance | OPEN | Need browser GPU timings and Android confirmation |
@@ -35,6 +40,7 @@ Never mark visually complete based on a GitHub build or commit alone.
 - [x] Add prototype parented keelson, floor timbers, transverse frames, deck beams, side stringers (7fdd4a5e), **commit only; not visually checked**.
 - [ ] Compile new construction commit in Godot and run WebGL smoke test.
 - [ ] Capture deck-level and below-deck screenshots, not only orbit view, with the new timber visible.
+- [x] Replace rectangular upright frame placeholders with provisional curved station ribs (ed84828c); code committed, **not tested yet**.
 - [ ] Reconstruct a historically supported **hull geometry** and match model stations and mass; no sealing assumptions based on disconnected boxes.
 - [ ] Design and model walkable decks, hatches, stairs, headroom and collision surfaces that line up.
 - [ ] Connect fixed rigging to actual mast/yard hardware, then implement deformable sails.
