@@ -44,6 +44,17 @@ func _assign_material(mi: MeshInstance3D) -> void:
   category = "hull"
  classifications[category] = int(classifications.get(category, 0)) + 1
  var mat := StandardMaterial3D.new()
+ # Reuse mesh UVs with deterministic procedural grain, avoiding missing external textures.
+ var noise := FastNoiseLite.new()
+ noise.seed = 213 + int(classifications[category])
+ noise.frequency = 0.035
+ var tex := NoiseTexture2D.new()
+ tex.width = 128
+ tex.height = 128
+ tex.seamless = true
+ tex.noise = noise
+ mat.albedo_texture = tex
+ mat.uv1_scale = Vector3(2.5,2.5,1.0)
  mat.metallic = 0.0
  mat.roughness = 0.76
  match category:
