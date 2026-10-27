@@ -20,6 +20,11 @@ Never mark visually complete based on a GitHub build or commit alone.
 - Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
 - Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
 
+## Master-rig connection implementation — October 27
+- MasterAssembly now subscribes to the helm's `steering_connection_changed` signal; toggling ROPE CUT records `steering_rope_connected` without falsely disconnecting all helm machinery (commits a6b7861b and 2cd5349b). **Source integrated; runtime verification pending.**
+- [ ] Confirm master assembly initializes and event fires when ROPE CUT is pressed.
+- [ ] Move steering wheel, pulley, rope and rudder to independently reusable PackedScene subassemblies with explicitly defined attachment sockets.
+
 ## Master rig integration (new)
 - Added `scripts/ship_assembly.gd` (d3c8c528) and mounted `MasterAssembly` on the Boat scene (429fe682). The registry discovers HullVisual, ShipStructure, ShipIntegrity, Mechanisms and Wetness, verifies required subassemblies, and exposes connection status. **This is a master assembly interface, not physical fasteners, constraints, or a skinned rig.**
 - [ ] Verify Godot scene startup, registry populated, and no missing assemblies.
