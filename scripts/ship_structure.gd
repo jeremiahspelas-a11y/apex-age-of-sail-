@@ -41,16 +41,48 @@ func build_timber_skeleton() -> void:
  material.roughness = 0.93
  # Longitudinal keelson mechanically locates the floor timbers.
  add_timber("Keelson", Vector3(0.54,0.44,21.0), Vector3(0,-1.26,0),material)
- # Eleven transverse timber stations: paired uprights, floor timbers and deck beams.
- # They are deliberately below the imported sail/rigging geometry.
+ # Station curves use half-beam and vertical sheer profiles instead of straight box frames.
+ # This is a procedural hull-shape prototype, NOT a surveyed historical lines plan.
  for station in 11:
   var z: float = -9.5 + float(station)*1.9
-  add_timber("Floor_%02d" % station,Vector3(4.3,0.24,0.21),Vector3(0,-1.2,z),material)
+  var taper: float = pow(absf(z)/11.5,1.5)
+  var beam: float = 2.22 * (1.0 - 0.38*taper)
+  var deck_y: float = 0.32 + 0.22*taper
+  add_timber("Floor_%02d" % station,Vector3(beam*1.8,0.24,0.21),Vector3(0,-1.2,z),material)
   for side in [-1,1]:
-   add_timber("Frame_%02d_%s" % [station,"P" if side < 0 else "S"],Vector3(0.24,1.62,0.23),Vector3(float(side)*2.15,-0.31,z),material)
-  add_timber("DeckBeam_%02d" % station,Vector3(4.45,0.23,0.24),Vector3(0,0.32,z),material)
+   var contour := PackedVector3Array()
+   for level in 9:
+    var t: float = float(level)/8.0
+    var x: float = float(side) * beam * (0.35 + 0.65*sin(t*PI*0.5))
+    var y: float = lerpf(-1.35,deck_y,t)
+    contour.append(Vector3(x,y,z))
+   add_curved_frame("Rib_%02d_%s" % [station,"P" if side < 0 else "S"],contour,0.14,material)
+  add_timber("DeckBeam_%02d" % station,Vector3(beam*1.98,0.23,0.24),Vector3(0,deck_y,z),material)
+
  for side in [-1,1]:
   add_timber("Stringer_%s" % ["P" if side < 0 else "S"],Vector3(0.2,0.22,20.0),Vector3(float(side)*2.18,-0.46,0),material)
+
+func add_curved_frame(member_name: String, points: PackedVector3Array, radius: float, mat: Material) -> void:
+ # Uses Godot's built-in procedural mesh API: no unlicensed third-party geometry.
+ # Multiple short cylinders share one parent frame, so the visual rib follows stations.
+ var frame := Node3D.new()
+ frame.name = member_name
+ add_child(frame)
+ for j in range(points.size()-1):
+  var p0: Vector3 = points[j]
+  var p1: Vector3 = points[j+1]
+  var axis: Vector3 = p1-p0
+  var part := MeshInstance3D.new()
+  var beam := CylinderMesh.new()
+  beam.top_radius = radius
+  beam.bottom_radius = radius
+  beam.height = axis.length()+0.02
+  beam.radial_segments = 8
+  part.mesh = beam
+  part.material_override = mat
+  part.position = (p0+p1)*0.5
+  part.quaternion = Quaternion(Vector3.UP,axis.normalized())
+  frame.add_child(part)
 
 func add_timber(n:String,size:Vector3,pos:Vector3,mat:Material) -> void:
  var member := MeshInstance3D.new()
