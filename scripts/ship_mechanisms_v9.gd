@@ -15,6 +15,12 @@ var wheel_drum_radius := 0.18
 var tiller_radius := 0.95
 var rope_travel := 0.0
 var actual_rudder_angle := 0.0
+var steering_rope_intact := true
+var drum_efficiency := 0.94
+func toggle_steering_rope() -> void:
+ steering_rope_intact = not steering_rope_intact
+func rudder_angle_for_physics() -> float:
+ return actual_rudder_angle
 func make_part(name: String, dimensions: Vector3, pos: Vector3, color: Color, collision := true) -> Node3D:
  var pivot := Node3D.new()
  pivot.name = name
@@ -53,8 +59,9 @@ func _process(delta: float) -> void:
  if vessel == null: return
  var desired_wheel_angle: float = clampf(float(vessel.get("rudder_input")),-1.0,1.0) * deg_to_rad(140.0)
  wheel_angle = move_toward(wheel_angle,desired_wheel_angle,delta * 1.5)
- rope_travel = wheel_angle * wheel_drum_radius
- actual_rudder_angle = clampf(rope_travel / tiller_radius,-deg_to_rad(32.0),deg_to_rad(32.0))
+ rope_travel = wheel_angle * wheel_drum_radius * drum_efficiency if steering_rope_intact else 0.0
+ var demanded_angle: float = clampf(rope_travel / tiller_radius,-deg_to_rad(32.0),deg_to_rad(32.0))
+ actual_rudder_angle = move_toward(actual_rudder_angle,demanded_angle,delta * 0.42) if steering_rope_intact else move_toward(actual_rudder_angle,0.0,delta * 0.12)
  rudder.rotation.y = actual_rudder_angle
  wheel.rotation.z = wheel_angle
  var trim: float = clamp(float(vessel.get("sheet_angle")), -1.5, 1.5)
