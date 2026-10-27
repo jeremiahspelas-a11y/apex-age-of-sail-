@@ -5,6 +5,8 @@ extends Node3D
 @export var max_wind_mps := 17.0
 @onready var boat: RigidBody3D = get_parent().get_node("Boat")
 @onready var ocean: MeshInstance3D = get_parent().get_node("Ocean")
+## Start at late morning with strong daylight, then advance continuously through night.
+@export_range(0.0,24.0,0.25) var starting_hour := 10.0
 var phase := 0.0
 var current_storm := 0.0
 var sun: DirectionalLight3D
@@ -20,6 +22,7 @@ func get_wetness() -> float:
  return current_storm
 
 func _ready() -> void:
+ phase = fposmod((starting_hour - 6.0) / 24.0 * TAU, TAU)
  sun = DirectionalLight3D.new()
  sun.name = "WeatherSun"
  sun.light_energy = 1.65
@@ -101,9 +104,9 @@ func _process(delta: float) -> void:
  ocean.storm_scale = 0.55 + storm*2.6
  ocean.wetness = storm
  ocean.set("wind_direction", Vector2(wind.x, wind.z).normalized())
- # Full procedural 24-hour sun/moon cycle; sun starts close to dawn.
+ # Procedural full-day lighting: configured 10 AM start, 6 AM sunrise, 6 PM sunset.
  # Rotation X drives sunlight direction; moon is on the opposite hemisphere.
- var solar_phase: float = phase - 0.20
+ var solar_phase: float = phase
  var daylight: float = sin(solar_phase)
  var day_strength: float = smoothstep(-0.10,0.22,daylight)
  var night_strength: float = 1.0 - smoothstep(-0.22,0.08,daylight)

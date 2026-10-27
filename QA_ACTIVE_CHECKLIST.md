@@ -2,6 +2,12 @@
 
 Updated: 2026-10-27. This is the source of truth for what was *actually* verified.
 
+## Daylight-first procedural world and audit maintenance — October 27
+- User decision: **start at 10:00 AM**, with clear useful daylight, but preserve a progressing procedural 24-hour sun/moon/ambient cycle (6 AM sunrise, 6 PM sunset under the simplified sine model). Weather/cloud/wind stay procedural. No fixed perpetual daylight.
+- Updated `scripts/weather_controller.gd` to initialize phase from exported `starting_hour=10.0` and removed old pre-dawn solar phase offset. Updated `scripts/audit_original_rig.gd` to remove stale statements claiming old mast coordinates and an active duplicate procedural hull; these had already been corrected in code.
+- Verify through GitHub import/export and browser smoke tests; daylight at startup and continuous sunrise/night transitions need **separate time-controlled visual QA**. Do not mark VIS-05 visually fixed from code alone.
+- Prior `fceff0dc` workflow 40600402834 **SUCCESS** including web deployment. The GLB audit from cd316398 is now included in that passing run (inspect logs for `RIG PAIR PASS` if necessary).
+
 ## Active visual-defect register — Android capture 1000079261.mp4 (20.9 s, user-provided prior-build footage)
 Evidence interpretation: source video shows the *preceding* deployed version, not necessarily current HEAD; sampled seven evenly spaced frames covering the clip. This is user-captured Android visual evidence, **not** evidence that current later commits failed. Never mark fixed merely because CI passes.
 

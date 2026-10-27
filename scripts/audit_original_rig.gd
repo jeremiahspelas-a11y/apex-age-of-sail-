@@ -38,10 +38,8 @@ func _initialize() -> void:
   root.free()
   quit(1)
   return
- print("RIG AUDIT procedural mast collider z: [-5.5, 1.2, 8.0]")
- print("RIG AUDIT animated yard z: [-6.5, 0.0, 6.0]")
- print("RIG AUDIT working rudder z: 13.6; shell stern z: 10.9")
- print("RIG AUDIT WARNING: procedural hull overlays original imported geometry; visual and collision overlap unverified")
+ print("RIG AUDIT verified original mast z positions: [-6.5, 3.1, 10.8]")
+ print("RIG AUDIT original GLB preserved; procedural exterior shell generation disabled")
  root.free()
  quit(0)
 func _walk(node: Node, parent_xform: Transform3D) -> void:
