@@ -35,7 +35,10 @@ func _ready() -> void:
  angular_damp = 1.5
  freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
  freeze = true
- _controlled_heading = rotation.y
+ # Start on a broad reach relative to the weather's initial wind, not trapped in irons.
+ # Weather seed 17 starts with wind traveling roughly toward +Z.
+ _controlled_heading = 1.15
+ rotation.y = _controlled_heading
  center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
  center_of_mass = Vector3(0,-1.2,0)
 func _height(x: float,z: float) -> float:
