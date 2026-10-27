@@ -3,7 +3,14 @@ extends Node
 const GRAVITY := 9.8
 var time := 0.0
 var storm_scale := 1.0
-var waves := [Vector3(0,0.31,34), Vector3(140,0.19,19), Vector3(65,0.12,10), Vector3(205,0.07,5)]
+## Direction (degrees), amplitude (m), wavelength (m). Eight scale bands, deterministic.
+## Long swell overlaps local wind waves and shorter chop for non-repeating groups.
+var waves := [
+ Vector3(12,0.48,82), Vector3(41,0.31,48),
+ Vector3(142,0.23,28), Vector3(111,0.17,17),
+ Vector3(69,0.11,10), Vector3(204,0.075,6),
+ Vector3(25,0.038,3.5), Vector3(163,0.018,2.2)
+]
 func _physics_process(delta: float) -> void:
  time += delta
 func get_displacement_at(x: float,z: float,t: float) -> Vector3:
