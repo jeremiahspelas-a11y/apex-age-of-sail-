@@ -85,6 +85,14 @@ jobs:
             if (!canvas || errors.some(e => /WebGL|shader|SCRIPT ERROR|uncaught|Failed to load/i.test(e))) process.exitCode = 1;
           })().catch(e => { console.error(e); process.exitCode = 1; });
           JS
+      - name: Publish visible QA evidence with the game
+        if: success()
+        run: |
+          mkdir -p web/qa
+          cp visual-qa/initial.png web/qa/initial.png
+          cp visual-qa/after-5s.png web/qa/after-5s.png
+          cp visual-qa/report.json web/qa/report.json
+          printf '%s\n' "${GITHUB_SHA}" > web/qa/commit.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
