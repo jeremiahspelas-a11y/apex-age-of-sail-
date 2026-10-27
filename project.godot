@@ -1,0 +1,12 @@
+config_version=5
+
+[application]
+config/name="APEX Age of Sail - Physics Sea Trial"
+run/main_scene="res://physics_trial.tscn"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+
+[autoload]
+Ocean="*res://addons/ocean3d_lite/ocean.gd"
