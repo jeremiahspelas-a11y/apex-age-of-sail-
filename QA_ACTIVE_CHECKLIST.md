@@ -20,6 +20,10 @@ Never mark visually complete based on a GitHub build or commit alone.
 - Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
 - Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
 
+## Measured alignment repair
+- Original rig inventory measured fore/main/mizzen mast centers at z = -6.5, 3.1, 10.8 and y = 10.15, 11.65, 7.65, respectively; original mast heights = 17.7, 20.7, 12.7. Updated **mast collision geometry only** to these centers/sizes in commit 39232bc4. Original GLB visual meshes unchanged.
+- This is a source commit, **not yet a confirmed build or physical collider pass**. Next checks: Godot import/runtime, screenshots, and collision movement around mast bases. Generated yards, rudder, decks, hull overlays remain under preservation hold.
+
 ## Original asset inventory — recovered from cancelled run 40596114168
 - Actual Godot GLB import completed and emitted: **288 original meshes**, original aggregate AABB position `(-6.25,-3.5,-19.06155)`, size `(12.5,25.5,34.01155)`.
 - Original name-match counts: `mast=3`, `yard=8`, `sail=8`, `wheel=9`, `rudder=5`, `deck=45`, `hull=2`, `cannon=4`. Counts are mesh name classifications, not guaranteed independently functional parts.
