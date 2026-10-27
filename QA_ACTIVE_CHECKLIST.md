@@ -20,6 +20,14 @@ Never mark visually complete based on a GitHub build or commit alone.
 - Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
 - Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
 
+## Original asset inventory — recovered from cancelled run 40596114168
+- Actual Godot GLB import completed and emitted: **288 original meshes**, original aggregate AABB position `(-6.25,-3.5,-19.06155)`, size `(12.5,25.5,34.01155)`.
+- Original name-match counts: `mast=3`, `yard=8`, `sail=8`, `wheel=9`, `rudder=5`, `deck=45`, `hull=2`, `cannon=4`. Counts are mesh name classifications, not guaranteed independently functional parts.
+- **Confirmed scale/extent discrepancy:** procedural hull z range `[-10.9,+10.9]` spans 21.8 units, while imported rig bounds extend from approximately `-19.06` to `+14.95` (34.01 units), so newly generated skin is not coextensive with the original model. The hull-specific mesh bounds have not yet been isolated, so 34.01 units is *overall rig extent*, not necessarily hull length.
+- New animated rudder z=13.6 and mast colliders z=[-5.5,1.2,8.0] are unverified against five original rudder meshes and three original mast meshes. Nine original wheel-related meshes indicate likely duplicate helm fittings; **do not delete either until inspecting actual mesh transforms and screenshots**.
+- Next audit run b6fb94de is in progress; it adds per-component centers/dimensions. Do not call build success or visual correctness before completion.
+- **Construction HOLD:** no new hull, sail, mast, helm, yard, or rudder geometry until components are matched against the original rig and duplicate overlaps resolved safely.
+
 ## STOP-GATE: original rig preservation audit
 - Do not add or move rigging, masts, rudder, yards or replace the original GLB until original parts and positions have been inventoried and reviewed.
 - **Confirmed from current source (not visual confirmation):** original GLB remains instanced as `HullVisual`; new hull strakes, keel bottom and end caps are additional geometry, so overlapping duplicate hull is possible.
