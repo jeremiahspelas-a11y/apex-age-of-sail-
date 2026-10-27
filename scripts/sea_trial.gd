@@ -4,8 +4,8 @@ extends Node3D
 var rudder := 0.0
 var reef := 0.65
 var sheet := 0.4
-var orbit := 0.0
-var pitch := 0.28
+var orbit := 0.65
+var pitch := 0.40
 var dragging := false
 var active_walk_buttons: Dictionary = {}
 var status: Label
@@ -98,11 +98,11 @@ func _process(delta: float) -> void:
  if delta > 0.0001:
   _observed_speed = boat.global_position.distance_to(_last_boat_position) / delta
  _last_boat_position = boat.global_position
- var distance := 32.0
+ var distance := 29.0
  var offset := Vector3(sin(orbit)*cos(pitch),sin(pitch)+0.42,cos(orbit)*cos(pitch))*distance
  camera.global_position = camera.global_position.lerp(boat.global_position+offset,clamp(delta*4.0,0.0,1.0))
  camera.look_at(boat.global_position+Vector3.UP*4.0)
- status.text = "APEX | %s | actual speed %.2f m/s | rudder %.0f%% | reef %.0f%% | sheet %.0f°" % ["CONTROLLED (dynamic physics unstable)" if boat.freeze else "DYNAMIC",_observed_speed,rudder*100.0,reef*100.0,rad_to_deg(sheet)]
+ status.text = "APEX  |  SPEED %.1f m/s  |  RUDDER %.0f%%  |  SAIL %.0f%%" % [_observed_speed,rudder*100.0,reef*100.0]
 func _walk_input(key: String) -> void:
  if key == "STOP":
   active_walk_buttons.clear()
