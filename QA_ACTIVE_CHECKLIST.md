@@ -20,6 +20,10 @@ Never mark visually complete based on a GitHub build or commit alone.
 - Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
 - Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
 
+## Current construction step
+- Added `GarboardAndKeelBottom` with indexed triangles connecting provisional port/starboard garboard lower edges to a central keel line; commit d53ea22a. **Not certified watertight**, remains open at top, not yet rendered/validated. This change follows earlier port/starboard planking and end-cap prototypes.
+- Latest previous Actions run 40594769813 was still in progress when checked. Several preceding runs were cancelled by newer commits; a cancelled run is not a build pass.
+
 ## Latest verification and regression work
 - Workflow 40594611876 was still running when checked; no evidence yet that the bow/stern visual closure release deployed.
 - Added a source-level build regression assertion for both end closures in CI (commit c03bbc8b). This is **not** a watertight manifold test and does not substitute for inspecting screenshots.
