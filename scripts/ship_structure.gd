@@ -36,6 +36,7 @@ func _ready() -> void:
  build_timber_skeleton()
  build_hull_strakes()
  build_end_closures()
+ build_keel_bottom()
 
 func build_timber_skeleton() -> void:
  var material := StandardMaterial3D.new()
@@ -140,6 +141,36 @@ func build_end_closures() -> void:
   end_panel.mesh = surface
   end_panel.material_override = end_mat
   add_child(end_panel)
+
+func build_keel_bottom() -> void:
+ # Add the missing lower shell between the two garboard edges at each station.
+ # Still an open-top visual shell, not a certified manifold or buoyancy volume.
+ var shell_mat := StandardMaterial3D.new()
+ shell_mat.albedo_color = Color(0.34,0.19,0.10)
+ shell_mat.roughness = 0.91
+ shell_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+ var verts := PackedVector3Array()
+ var indices := PackedInt32Array()
+ for station in 25:
+  var z: float = lerpf(-10.9,10.9,float(station)/24.0)
+  verts.append(hull_station(z,-1.0,0.0))
+  verts.append(Vector3(0,-1.58,z))
+  verts.append(hull_station(z,1.0,0.0))
+ for station in 24:
+  var k: int = station*3
+  indices.append_array(PackedInt32Array([k,k+3,k+1,k+1,k+3,k+4]))
+  indices.append_array(PackedInt32Array([k+1,k+4,k+2,k+2,k+4,k+5]))
+ var arrays := []
+ arrays.resize(Mesh.ARRAY_MAX)
+ arrays[Mesh.ARRAY_VERTEX] = verts
+ arrays[Mesh.ARRAY_INDEX] = indices
+ var surface := ArrayMesh.new()
+ surface.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+ var bottom := MeshInstance3D.new()
+ bottom.name = "GarboardAndKeelBottom"
+ bottom.mesh = surface
+ bottom.material_override = shell_mat
+ add_child(bottom)
 
 func add_curved_frame(member_name: String, points: PackedVector3Array, radius: float, mat: Material) -> void:
  # Uses Godot's built-in procedural mesh API: no unlicensed third-party geometry.
