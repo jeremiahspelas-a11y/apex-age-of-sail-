@@ -20,6 +20,16 @@ Never mark visually complete based on a GitHub build or commit alone.
 - Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
 - Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
 
+## STOP-GATE: original rig preservation audit
+- Do not add or move rigging, masts, rudder, yards or replace the original GLB until original parts and positions have been inventoried and reviewed.
+- **Confirmed from current source (not visual confirmation):** original GLB remains instanced as `HullVisual`; new hull strakes, keel bottom and end caps are additional geometry, so overlapping duplicate hull is possible.
+- **Coordinate discrepancies:** mast colliders z=-5.5,1.2,8.0 versus new animated yards z=-6.5,0.0,6.0; procedural shell ends at z=+10.9 while rudder is at z=+13.6. Neither is proof of a defect without GLB coordinate comparison.
+- **Potential era mismatch:** the prototype `HelmWheelHub` is not proof that the original vessel had a ship's wheel; circa 1670–1690 tiller/whipstaff may be more appropriate, pending evidence and original model inventory.
+- Added read-only Godot original GLB mesh inventory and AABB report (`scripts/audit_original_rig.gd`, commit 12227d03), invoked by CI (71373b8). Build results and report still pending.
+- [ ] Read actual CI inventory output; check mesh count, bounding box, mast, yard, sail, steering and hull names.
+- [ ] Compare original mast/yard/rudder world transforms against new generated components; document measured offsets before modifications.
+- [ ] Inspect deck and exterior browser screenshots for overlap and occlusion.
+
 ## Historical vessel baseline and third-party evaluation
 - This user's preservation constraint takes precedence over earlier sloop proposal. Retain existing game scene/GLB and focus on historically plausible detailing and rigging; existing visual sail proportions must be inspected before changing mesh geometry.
 - **USER-LOCKED DESIGN BASELINE:** Preserve the existing three-masted `apex_pinnace_v9.glb` as the reference silhouette and layout. Interpret it as a **late-17th-century armed pinnace / small three-masted merchant-privateer, circa 1670–1690**, subject to later plan verification. This is a design identity, not proof that the model matches any surviving vessel. **Do not substitute a single-masted sloop, boxy square-sail-dominated ship, or modern yacht.** No wholesale hull replacement without a demonstrated need. Keep the existing three masts, hull, deck layout, and fittings wherever practicable; prioritize period-consistent wooden spars, mixed sail plan including lateen mizzen where appropriate, rope-operated mechanisms, and historically appropriate hardware. Avoid engines, modern winches, yacht rails, modern sail materials and modern steering gear. Do not remove all square sails merely to avoid a boxy silhouette; refine their shape and proportion.
