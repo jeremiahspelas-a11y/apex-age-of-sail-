@@ -49,14 +49,26 @@ func make_part(name: String, dimensions: Vector3, pos: Vector3, color: Color, co
   body.add_child(collider)
  return pivot
 func _ready() -> void:
- rudder = make_part("WorkingRudder", Vector3(.2,2.0,1.35), Vector3(0,-1.1,13.6), Color(.32,.17,.08))
- wheel = make_part("HelmWheelHub", Vector3(.36,.36,.38), Vector3(0,3.02,10.9), Color(.4,.24,.1), false)
+ # Original GLB already contains rudder and wheel. Retain control state without duplicate visible boxes.
+ rudder = Node3D.new()
+ rudder.name = "RudderControlPivot"
+ rudder.position = Vector3(0,-1.25,13.45)
+ add_child(rudder)
+ wheel = Node3D.new()
+ wheel.name = "HelmControlPivot"
+ wheel.position = Vector3(0,2.95,10.8)
+ add_child(wheel)
  for z in [-2.5,4.5]:
   doors.append(make_part("HingedDoor", Vector3(1.02,1.68,.085), Vector3(-.45,-.01,z), Color(.46,.27,.12)))
  for z in [-4.0,2.0]:
   hatches.append(make_part("OpeningHatch", Vector3(1.15,.1,1.2), Vector3(0,1.39,z), Color(.46,.28,.13)))
- for z in [-6.5,0.0,6.0]:
-  yards.append(make_part("TurningYard", Vector3(6.4,.19,.19), Vector3(0,9.5,z), Color(.38,.22,.10), false))
+ # Existing model contains eight rig yards. Do not create floating duplicate box yards.
+ for z in [-6.5,3.1,10.8]:
+  var pivot := Node3D.new()
+  pivot.name = "YardControlPivot"
+  pivot.position = Vector3(0,9.5,z)
+  add_child(pivot)
+  yards.append(pivot)
 func _process(delta: float) -> void:
  if vessel == null: return
  var desired_wheel_angle: float = clampf(float(vessel.get("rudder_input")),-1.0,1.0) * deg_to_rad(140.0)

@@ -10,6 +10,11 @@ Updated: 2026-10-27. This is the source of truth for what was *actually* verifie
 - **USER VERIFIED**: user confirms it works on their Android phone.
 Never mark visually complete based on a GitHub build or commit alone.
 
+## Screenshot-driven night/day rig preservation change — October 27
+- Android screenshot shows *nighttime* dark silhouette with poor moonlit readability, duplicate-looking spars and stiff original square sails. User confirms darkness is from desired procedural day/night weather; **retain dynamic cycle** rather than force full daylight.
+- This single atomic change introduces opposing sun/moon directional lights and time-varying ambient illumination, keeping storm influence; improves original material base tones and removes multiplicative dark noise; removes redundant generated box-shaped wheel/rudder/yard visuals while retaining steering state pivots; prevents incorrectly scaled duplicate exterior procedural shell and moves camera out slightly.
+- Original imported GLB 288-mesh asset preserved. Functional animated GLB rigging, sail cloth deformation, and historical fitting alignment remain subsequent engineering tasks. Source change pending CI and Android inspection.
+
 ## Latest independently checked evidence
 - Successful build and deployment: workflow 40591984672, commit f06be355. Visual QA archive retrieved and both initial.png and after-5s.png manually opened. Playwright: canvas=1, errors=[].
 - **Visual finding:** Both frames show a very dark ship with rigid sails; no visible clouds or sun from that camera angle; water now covers the image but has conspicuous bright streaks and an unnatural appearance. Do not certify cloud/sun appearance or ship geometry from these frames.

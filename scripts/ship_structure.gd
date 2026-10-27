@@ -37,9 +37,8 @@ func _ready() -> void:
  # Construction pass 1: coherent ship-interior frame, beam and keelson skeleton.
  # Visual members belong to the vessel transform rather than world-space decoration.
  build_timber_skeleton()
- build_hull_strakes()
- build_end_closures()
- build_keel_bottom()
+ # Preserve original GLB exterior; second procedural hull used incorrect shorter dimensions.
+ # build_hull_strakes(), build_end_closures(), build_keel_bottom() intentionally not invoked.
 
 func build_timber_skeleton() -> void:
  var material := StandardMaterial3D.new()

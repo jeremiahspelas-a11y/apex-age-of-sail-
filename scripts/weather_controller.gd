@@ -8,6 +8,8 @@ extends Node3D
 var phase := 0.0
 var current_storm := 0.0
 var sun: DirectionalLight3D
+var moon: DirectionalLight3D
+var environment: Environment
 var sky_material: PhysicalSkyMaterial
 var cloud_banks: Array[Node3D] = []
 var cloud_materials: Array[StandardMaterial3D] = []
@@ -20,13 +22,20 @@ func get_wetness() -> float:
 func _ready() -> void:
  sun = DirectionalLight3D.new()
  sun.name = "WeatherSun"
- sun.light_energy = 1.45
+ sun.light_energy = 1.65
  sun.shadow_enabled = true
  sun.rotation_degrees = Vector3(-35.0,-35.0,0.0)
  add_child(sun)
+ moon = DirectionalLight3D.new()
+ moon.name = "WeatherMoon"
+ moon.light_color = Color(0.56,0.68,0.90)
+ moon.light_energy = 0.0
+ moon.shadow_enabled = false
+ add_child(moon)
  var world := WorldEnvironment.new()
  world.name = "WeatherEnvironment"
  var env := Environment.new()
+ environment = env
  env.background_mode = Environment.BG_SKY
  var sky := Sky.new()
  sky_material = PhysicalSkyMaterial.new()
@@ -35,7 +44,9 @@ func _ready() -> void:
  sky_material.use_debanding = true
  sky.sky_material = sky_material
  env.sky = sky
- env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+ env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+ env.ambient_light_color = Color(0.7,0.78,0.93)
+ env.ambient_light_energy = 0.3
  env.reflected_light_source = Environment.REFLECTION_SOURCE_BG
  env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
  world.environment = env
@@ -90,9 +101,18 @@ func _process(delta: float) -> void:
  ocean.storm_scale = 0.55 + storm*2.6
  ocean.wetness = storm
  ocean.set("wind_direction", Vector2(wind.x, wind.z).normalized())
- var sun_elevation: float = -55.0 + 12.0*sin(phase*0.13) + storm*13.0
- sun.rotation_degrees = Vector3(sun_elevation, -35.0 + phase*7.0, 0.0)
- sun.light_energy = 1.5 - storm*0.9
+ # Full procedural 24-hour sun/moon cycle; sun starts close to dawn.
+ # Rotation X drives sunlight direction; moon is on the opposite hemisphere.
+ var solar_phase: float = phase - 0.20
+ var daylight: float = sin(solar_phase)
+ var day_strength: float = smoothstep(-0.10,0.22,daylight)
+ var night_strength: float = 1.0 - smoothstep(-0.22,0.08,daylight)
+ sun.rotation_degrees = Vector3(-90.0 + rad_to_deg(solar_phase), -35.0, 0.0)
+ sun.light_energy = (1.85-storm*0.5)*day_strength
+ moon.rotation_degrees = Vector3(sun.rotation_degrees.x+180.0,sun.rotation_degrees.y,0.0)
+ moon.light_energy = (0.36-storm*0.10)*night_strength
+ environment.ambient_light_energy = lerpf(0.18,0.80,day_strength)
+ environment.ambient_light_color = Color(0.43,0.54,0.78).lerp(Color(0.82,0.85,0.91),day_strength)
  sun.light_color = Color(1.0,0.95,0.84).lerp(Color(0.79,0.84,0.93),storm)
  sky_material.turbidity = lerpf(2.2,8.0,storm)
  sky_material.mie_coefficient = lerpf(0.004,0.014,storm)

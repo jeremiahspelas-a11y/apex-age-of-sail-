@@ -48,22 +48,19 @@ func _assign_material(mi: MeshInstance3D) -> void:
  var noise := FastNoiseLite.new()
  noise.seed = 213 + int(classifications[category])
  noise.frequency = 0.035
- var tex := NoiseTexture2D.new()
- tex.width = 128
- tex.height = 128
- tex.seamless = true
- tex.noise = noise
- mat.albedo_texture = tex
+ # The old white-on-black noise texture multiplied colors into near-black during nights.
+ # Keep readable natural albedo; illumination still varies with sun, moon and storms.
+ mat.albedo_texture = null
  mat.uv1_scale = Vector3(2.5,2.5,1.0)
  mat.metallic = 0.0
  mat.roughness = 0.76
  match category:
   "canvas":
-   mat.albedo_color = Color(0.76,0.69,0.53)
+   mat.albedo_color = Color(0.85,0.78,0.65)
    mat.roughness = 0.96
    mat.cull_mode = BaseMaterial3D.CULL_DISABLED
   "rigging":
-   mat.albedo_color = Color(0.28,0.20,0.12)
+   mat.albedo_color = Color(0.41,0.31,0.20)
    mat.roughness = 0.92
   "iron":
    mat.albedo_color = Color(0.16,0.18,0.19)
@@ -72,9 +69,9 @@ func _assign_material(mi: MeshInstance3D) -> void:
   "deck":
    mat.albedo_color = Color(0.45,0.28,0.15)
   "hull":
-   mat.albedo_color = Color(0.23,0.12,0.07)
+   mat.albedo_color = Color(0.39,0.25,0.15)
   _:
-   mat.albedo_color = Color(0.36,0.20,0.105)
+   mat.albedo_color = Color(0.48,0.32,0.19)
  # Per-surface override is more reliable than a translucent white overlay.
  for surface in mi.mesh.get_surface_count():
   mi.set_surface_override_material(surface, mat)

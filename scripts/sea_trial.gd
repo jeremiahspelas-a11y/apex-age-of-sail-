@@ -120,7 +120,7 @@ func _process(delta: float) -> void:
  if delta > 0.0001:
   _observed_speed = boat.global_position.distance_to(_last_boat_position) / delta
  _last_boat_position = boat.global_position
- var distance := 29.0
+ var distance := 37.0
  var offset := Vector3(sin(orbit)*cos(pitch),sin(pitch)+0.42,cos(orbit)*cos(pitch))*distance
  camera.global_position = camera.global_position.lerp(boat.global_position+offset,clamp(delta*4.0,0.0,1.0))
  camera.look_at(boat.global_position+Vector3.UP*4.0)
