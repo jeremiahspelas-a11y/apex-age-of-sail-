@@ -14,6 +14,7 @@ var fly_buttons: Dictionary = {}
 var fly_yaw := 0.0
 var fly_pitch := 0.0
 var photo_ui: Control
+var restore_hud_button: Button
 var fly_ui: Control
 var normal_ui: Control
 var hud_layer: CanvasLayer
@@ -127,12 +128,20 @@ func _build_fly_controls(canvas: CanvasLayer) -> void:
   b.button_down.connect(_fly_press.bind(item[1]))
   b.button_up.connect(_fly_release.bind(item[1]))
  var photo := Button.new()
- photo.text = "PHOTO HUD"
+ photo.text = "HIDE HUD"
  photo.position = Vector2(12, 110)
  photo.custom_minimum_size = Vector2(130, 46)
  canvas.add_child(photo)
  photo.pressed.connect(_toggle_photo)
  photo_ui = photo
+ var restore := Button.new()
+ restore.text = "SHOW HUD"
+ restore.position = Vector2(12, 12)
+ restore.custom_minimum_size = Vector2(130, 48)
+ restore.visible = false
+ canvas.add_child(restore)
+ restore.pressed.connect(_toggle_photo)
+ restore_hud_button = restore
 
 func _toggle_fly() -> void:
  god_mode = not god_mode
@@ -141,6 +150,7 @@ func _toggle_fly() -> void:
  normal_ui.visible = not god_mode
  photo_mode = false
  photo_ui.visible = true
+ restore_hud_button.visible = false
  status.visible = true
  if god_mode:
   fly_yaw = orbit
@@ -156,6 +166,7 @@ func _toggle_photo() -> void:
  normal_ui.visible = not photo_mode and not god_mode
  fly_ui.visible = not photo_mode and god_mode
  photo_ui.visible = not photo_mode
+ restore_hud_button.visible = photo_mode
 
 func _fly_press(key: String) -> void:
  fly_buttons[key] = true
