@@ -72,19 +72,19 @@ func _build_clouds() -> void:
 func _process(delta: float) -> void:
  phase += delta / max(cycle_seconds, 1.0) * TAU
  cloud_clock += delta
- var front := 0.5 + 0.5*sin(phase + float(seed_value))
- var secondary := 0.5 + 0.5*sin(phase*0.37 + float(seed_value)*0.57)
- var storm := clamp(front*0.75 + secondary*0.25, 0.0, 1.0)
+ var front: float = 0.5 + 0.5*sin(phase + float(seed_value))
+ var secondary: float = 0.5 + 0.5*sin(phase*0.37 + float(seed_value)*0.57)
+ var storm: float = clamp(front*0.75 + secondary*0.25, 0.0, 1.0)
  current_storm = storm
- var gust := 0.8 + 0.2*sin(phase*7.0 + 2.0)
- var heading := phase*0.23 + float(seed_value)*0.1
- var speed := (5.0 + storm*max_wind_mps)*gust
+ var gust: float = 0.8 + 0.2*sin(phase*7.0 + 2.0)
+ var heading: float = phase*0.23 + float(seed_value)*0.1
+ var speed: float = (5.0 + storm*max_wind_mps)*gust
  var wind := Vector3(cos(heading)*speed, 0.0, sin(heading)*speed)
  boat.wind_world = wind
  ocean.storm_scale = 0.55 + storm*2.6
  ocean.wetness = storm
  ocean.set("wind_direction", Vector2(wind.x, wind.z).normalized())
- var sun_elevation := -55.0 + 12.0*sin(phase*0.13) + storm*13.0
+ var sun_elevation: float = -55.0 + 12.0*sin(phase*0.13) + storm*13.0
  sun.rotation_degrees = Vector3(sun_elevation, -35.0 + phase*7.0, 0.0)
  sun.light_energy = 1.5 - storm*0.9
  sun.light_color = Color(1.0,0.95,0.84).lerp(Color(0.79,0.84,0.93),storm)
@@ -95,10 +95,10 @@ func _process(delta: float) -> void:
  var center := Vector3.ZERO if camera == null else Vector3(camera.global_position.x, 0.0, camera.global_position.z)
  for i in cloud_banks.size():
   var p := base_cloud_positions[i]
-  var drift := wind.normalized()*cloud_clock*(0.8 + 0.35*float(i%4))
-  var dx := fposmod(p.x + drift.x + 380.0, 760.0)-380.0
-  var dz := fposmod(p.z + drift.z + 380.0, 760.0)-380.0
+  var drift: Vector3 = wind.normalized()*cloud_clock*(0.8 + 0.35*float(i%4))
+  var dx: float = fposmod(p.x + drift.x + 380.0, 760.0)-380.0
+  var dz: float = fposmod(p.z + drift.z + 380.0, 760.0)-380.0
   cloud_banks[i].global_position = center + Vector3(dx,p.y,dz)
-  var cover := clamp(0.24 + storm*0.7 + 0.12*sin(phase*2.0 + float(i)),0.0,1.0)
+  var cover: float = clamp(0.24 + storm*0.7 + 0.12*sin(phase*2.0 + float(i)),0.0,1.0)
   cloud_banks[i].visible = cover > 0.27 or i%3 == 0
   cloud_materials[i].albedo_color = Color(0.95,0.96,0.98,0.3 + cover*0.45).lerp(Color(0.37,0.43,0.52,0.55+cover*0.25),storm)
