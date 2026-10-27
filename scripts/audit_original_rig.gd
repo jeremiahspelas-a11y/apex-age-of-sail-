@@ -12,6 +12,24 @@ func _initialize() -> void:
   return
  var root := scene.instantiate()
  _walk(root,Transform3D.IDENTITY)
+ var rig_pairs := 0
+ for mast_no in range(1,4):
+  for level_no in range(1,4):
+   var suffix := str(mast_no)+"_"+str(level_no)
+   var sail := _find_suffix(root,"Square sail "+suffix)
+   var yard := _find_suffix(root,"Yard "+suffix)
+   if sail != null and yard != null:
+    rig_pairs += 1
+    var distance := sail.global_position.distance_to(yard.global_position)
+    print("RIG PAIR ",suffix," center-to-center=",distance)
+   elif sail != null or yard != null:
+    push_error("RIG PAIR incomplete: "+suffix)
+ if rig_pairs != 8:
+  push_error("RIG PAIR expected 8 imported pairs, found "+str(rig_pairs))
+  root.free()
+  quit(1)
+  return
+ print("RIG PAIR PASS: eight preserved imported sail-yard pairs matched")
  print("RIG AUDIT original mesh count: ",mesh_count)
  print("RIG AUDIT original bounds: ",bounds)
  print("RIG AUDIT categories: ",named_parts)
@@ -49,3 +67,12 @@ func _walk(node: Node, parent_xform: Transform3D) -> void:
     print("RIG PART ",term," name=",mi.name," center=",center," dimensions=",aabb.size)
  for child in node.get_children():
   _walk(child,world)
+
+func _find_suffix(node: Node, ending: String) -> MeshInstance3D:
+ if node is MeshInstance3D and node.name.ends_with(ending):
+  return node as MeshInstance3D
+ for child in node.get_children():
+  var match_mesh := _find_suffix(child,ending)
+  if match_mesh != null:
+   return match_mesh
+ return null
