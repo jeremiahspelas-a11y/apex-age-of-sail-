@@ -15,6 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Restore and verify original APEX V9 ship model
+        run: |
+          set -euo pipefail
+          test -s assets/apex_pinnace_v9.glb.xz.base64
+          base64 --decode assets/apex_pinnace_v9.glb.xz.base64 | xz --decompress > assets/apex_pinnace_v9.glb
+          printf '%s  %s\n' 'a34a9b501de901a51871cef455d4c2bccd5bd924a73b03920c3b793c8316bfb6' assets/apex_pinnace_v9.glb | sha256sum --check --status
+          test "$(wc -c < assets/apex_pinnace_v9.glb)" -eq 245044
+          echo "Original 288-mesh APEX V9 ship restored and SHA-256 verified."
       - name: Verify required APEX source files
         run: |
           set -euo pipefail
