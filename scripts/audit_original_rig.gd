@@ -15,6 +15,11 @@ func _initialize() -> void:
  print("RIG AUDIT original mesh count: ",mesh_count)
  print("RIG AUDIT original bounds: ",bounds)
  print("RIG AUDIT categories: ",named_parts)
+ if mesh_count < 200:
+  push_error("RIG AUDIT unexpectedly few original meshes: "+str(mesh_count))
+  root.free()
+  quit(1)
+  return
  print("RIG AUDIT procedural mast collider z: [-5.5, 1.2, 8.0]")
  print("RIG AUDIT animated yard z: [-6.5, 0.0, 6.0]")
  print("RIG AUDIT working rudder z: 13.6; shell stern z: 10.9")
@@ -36,9 +41,11 @@ func _walk(node: Node, parent_xform: Transform3D) -> void:
     has_bounds = true
    else:
     bounds = bounds.expand(p)
+  var center := world * aabb.get_center()
   var key := (mi.name+" "+mi.get_parent().name).to_lower()
   for term in ["mast","yard","sail","rig","rope","stay","rudder","wheel","deck","hull","cannon","anchor"]:
    if term in key:
     named_parts[term] = int(named_parts.get(term,0))+1
+    print("RIG PART ",term," name=",mi.name," center=",center," dimensions=",aabb.size)
  for child in node.get_children():
   _walk(child,world)
