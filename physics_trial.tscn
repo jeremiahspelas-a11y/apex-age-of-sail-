@@ -3,7 +3,6 @@
 [ext_resource type="Script" path="res://scripts/ship_structure.gd" id="6"]
 [ext_resource type="Script" path="res://addons/ocean3d_lite/ocean_surface.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/sailing_physics.gd" id="3"]
-[ext_resource type="ArrayMesh" path="res://assets/pinnace_hull_study.obj" id="4"]
 [ext_resource type="PackedScene" path="res://assets/apex_pinnace_v9.glb" id="5"]
 [ext_resource type="Script" path="res://scripts/player_walk.gd" id="7"]
 [ext_resource type="Script" path="res://scripts/ship_interactions.gd" id="8"]
