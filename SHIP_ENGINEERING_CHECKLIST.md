@@ -76,6 +76,9 @@
 ## Architecture choice
 Use a **hybrid simulation**: intact vessel = compound connected assembly with aggregated mass/inertia and hydrostatic sampling; breakable structural graph = detachable bodies only when fractured; ropes = tensioned segments at controllable LOD; sails = deformable render mesh plus aerodynamic force surface. The current script's `freeze=true`, speed interpolation, and direct `rotation` assignment are a **temporary prototype**, NOT a real force-based vessel.
 
+## Research note
+The Royal Museums Greenwich ship-plans collection documents the three orthographic views needed to reconstruct hull shape: profile, half-breadth and body plan. Source: https://www.rmg.co.uk/collections/our-collections-ship-plans-collection. Historical reconstruction must use an era-matched actual vessel plan, not approximate rectangular collision hulls. Godot Generic6DOFJoint3D can constrain linked moving rigid bodies, while SoftBody3D supports deformable simulation; both must be benchmarked in WebGL / Android before adoption.
+
 ## Technical sources
 - Godot 3D joints and constraints: https://docs.godotengine.org/en/latest/classes/class_generic6dofjoint3d.html
 - Godot SoftBody3D: https://docs.godotengine.org/en/latest/tutorials/physics/soft_body.html
