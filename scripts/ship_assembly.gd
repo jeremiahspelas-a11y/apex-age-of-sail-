@@ -10,6 +10,10 @@ func _ready() -> void:
   if part != null:
    assemblies[name] = {"node": part, "connected": true, "parent": "Boat"}
  verify_assembly()
+ var mechanisms := boat.get_node_or_null("Mechanisms")
+ if mechanisms != null and mechanisms.has_signal("steering_connection_changed"):
+  mechanisms.steering_connection_changed.connect(_on_steering_connection_changed)
+
 func verify_assembly() -> bool:
  var good := true
  for name in ["ShipStructure", "ShipIntegrity", "Mechanisms", "HullVisual"]:
@@ -30,3 +34,10 @@ func assembly_report() -> Dictionary:
  for name in assemblies:
   report[name] = {"connected": assemblies[name]["connected"], "parent": assemblies[name]["parent"]}
  return report
+
+func _on_steering_connection_changed(connected: bool) -> void:
+ if not assemblies.has("Mechanisms"):
+  return
+ # A broken steering rope disconnects steering, NOT the whole helm assembly.
+ assemblies["Mechanisms"]["steering_rope_connected"] = connected
+ assembly_changed.emit("SteeringRope",connected)
