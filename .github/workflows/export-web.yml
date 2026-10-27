@@ -48,6 +48,9 @@ jobs:
           mkdir -p web
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --export-release Web web/index.html 2>&1 | tee godot-export.log
           if grep -E "SCRIPT ERROR:|SHADER ERROR:|Parse Error:|Failed to load script" godot-export.log; then echo "::error::Godot script export errors"; exit 1; fi
+          echo "Auditing original APEX rig before further construction"
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://scripts/audit_original_rig.gd 2>&1 | tee original-rig-audit.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|RIG AUDIT: original GLB unavailable" original-rig-audit.log; then echo "::error::Original rig audit failed"; exit 1; fi
           echo "Running APEX headless runtime smoke test"
           timeout 25s ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit-after 100 2>&1 | tee godot-runtime.log
           if grep -E "SCRIPT ERROR:|SHADER ERROR:|Parse Error:|Failed to load script|Invalid call|Invalid access" godot-runtime.log; then echo "::error::Godot runtime errors"; exit 1; fi
