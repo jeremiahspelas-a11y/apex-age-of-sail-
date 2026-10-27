@@ -20,6 +20,11 @@ Never mark visually complete based on a GitHub build or commit alone.
 - Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
 - Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
 
+## Latest hull construction iteration
+- Latest verified deployment before new hull panels: workflow 40593421078, commit ed79fe39, success.
+- Added 16 separately named port/starboard outer strake mesh panels, using the same station profile as the curved ribs, with indexed Godot ArrayMesh triangles (commit 2c3b9c56). This is a **provisional visual hull**, not watertight or historically authenticated; no fracture or plank fasteners yet.
+- Expanded CI source-level checks for the new strake generation (commit d9de714d). New build and screenshot inspection still required.
+
 ## Latest CI improvement
 - Added a deterministic CI test of native timber construction presence, eleven station loop, tapered rib geometry and local-to-ship member placement (commit 41b21aed). **This is a source-level regression test, not structural physics validation.** The corresponding build result and screenshots must be checked before accepting it.
 
@@ -44,6 +49,7 @@ Never mark visually complete based on a GitHub build or commit alone.
 - [ ] Compile new construction commit in Godot and run WebGL smoke test.
 - [ ] Capture deck-level and below-deck screenshots, not only orbit view, with the new timber visible.
 - [x] Replace rectangular upright frame placeholders with provisional curved station ribs (ed84828c); code committed, **not tested yet**.
+- [x] Add provisional continuous port/starboard strake geometry tied to rib stations (2c3b9c56); **source committed, awaiting render QA**.
 - [ ] Reconstruct a historically supported **hull geometry** and match model stations and mass; no sealing assumptions based on disconnected boxes.
 - [ ] Design and model walkable decks, hatches, stairs, headroom and collision surfaces that line up.
 - [ ] Connect fixed rigging to actual mast/yard hardware, then implement deformable sails.
