@@ -9,6 +9,13 @@ Updated: 2026-10-27. This is the source of truth for what was *actually* verifie
 - Audit confirms both named original hulls before the hide is allowed; no bow/stern caps claimed as repaired until screenshot inspection. Protruding spars remain unresolved, require per-mesh origin audit.
 - Acceptance: Godot CI passes with 288 meshes, exactly eight original sail/yard pairs; screenshot confirms noon, double hull reduction, and no new visual seams. Android verification pending.
 
+## 2026-10-27 structural gate — verified status and reuse candidates
+- Build `40602159670` on `7883a11d` **FAILED** due to Godot type inference of `local_center`; correction `e09ec1ae` is **queued**, not verified. Do not attempt further hull modifications until headless import + browser screenshot pass.
+- Confirmed source: `V6_closed_hull` remains, earlier `legacy_000_Fairing-study wooden hull` is hidden on scene readiness if both nodes exist; final bow/stern closing is **NOT** established by this visibility choice. Before calling this resolved, verify mesh watertightness/visual ends by 3D views and model topology.
+- Protruding pieces: name/position diagnostic is now present, but its running result has not been retrieved; do not delete named original meshes without verifying whether they're rigging/anchor/spar components.
+- Reuse research: `Ocean3D-Org/ocean3d-lite` already credited in project; `stvgale/Gerstner-Waves-Buoyancy-Effects-Godot-4` is another possible wave/buoyancy reference, and `LesusX/Water-Shader` a possible water-material reference. No code imported from them in this step; verify licenses and browser compatibility first.
+- **Next executable gate**: Wait for repaired CI run to complete, retrieve `APEX PROJECTION AUDIT` lines and browse scene screenshot, then classify exact mesh IDs as legitimate spars vs legacy visual artifacts. Resolve bow/stern only with geometry evidence; do not mislabel an audit as a fix.
+
 ## Daylight-first procedural world and audit maintenance — October 27
 - User decision: **start at 10:00 AM**, with clear useful daylight, but preserve a progressing procedural 24-hour sun/moon/ambient cycle (6 AM sunrise, 6 PM sunset under the simplified sine model). Weather/cloud/wind stay procedural. No fixed perpetual daylight.
 - Updated `scripts/weather_controller.gd` to initialize phase from exported `starting_hour=10.0` and removed old pre-dawn solar phase offset. Updated `scripts/audit_original_rig.gd` to remove stale statements claiming old mast coordinates and an active duplicate procedural hull; these had already been corrected in code.
