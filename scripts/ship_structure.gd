@@ -35,6 +35,7 @@ func _ready() -> void:
  # Visual members belong to the vessel transform rather than world-space decoration.
  build_timber_skeleton()
  build_hull_strakes()
+ build_end_closures()
 
 func build_timber_skeleton() -> void:
  var material := StandardMaterial3D.new()
@@ -110,6 +111,35 @@ func build_hull_strakes() -> void:
    plank.mesh = mesh
    plank.material_override = plank_mat
    add_child(plank)
+
+func build_end_closures() -> void:
+ # Cap the provisional planked hull at bow and stern, avoiding open side-profile ends.
+ # This does not yet establish a certified watertight manifold.
+ var end_mat := StandardMaterial3D.new()
+ end_mat.albedo_color = Color(0.37,0.20,0.105)
+ end_mat.roughness = 0.89
+ end_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+ for end_z in [-10.9,10.9]:
+  var vertices := PackedVector3Array()
+  var indices := PackedInt32Array()
+  for band in 9:
+   var t: float = float(band)/8.0
+   vertices.append(hull_station(float(end_z),-1.0,t))
+   vertices.append(hull_station(float(end_z),1.0,t))
+  for band in 8:
+   var v: int = 2*band
+   indices.append_array(PackedInt32Array([v,v+1,v+2,v+1,v+3,v+2]))
+  var arrays := []
+  arrays.resize(Mesh.ARRAY_MAX)
+  arrays[Mesh.ARRAY_VERTEX] = vertices
+  arrays[Mesh.ARRAY_INDEX] = indices
+  var surface := ArrayMesh.new()
+  surface.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+  var end_panel := MeshInstance3D.new()
+  end_panel.name = "SternClosure" if end_z > 0.0 else "BowClosure"
+  end_panel.mesh = surface
+  end_panel.material_override = end_mat
+  add_child(end_panel)
 
 func add_curved_frame(member_name: String, points: PackedVector3Array, radius: float, mat: Material) -> void:
  # Uses Godot's built-in procedural mesh API: no unlicensed third-party geometry.
