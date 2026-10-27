@@ -1,4 +1,5 @@
 extends Node3D
+signal steering_connection_changed(connected: bool)
 ## V9 prototype: independent articulated solid parts and interactable states.
 @onready var vessel: RigidBody3D = get_parent() as RigidBody3D
 var rudder: Node3D
@@ -19,6 +20,7 @@ var steering_rope_intact := true
 var drum_efficiency := 0.94
 func toggle_steering_rope() -> void:
  steering_rope_intact = not steering_rope_intact
+ steering_connection_changed.emit(steering_rope_intact)
 func rudder_angle_for_physics() -> float:
  return actual_rudder_angle
 func make_part(name: String, dimensions: Vector3, pos: Vector3, color: Color, collision := true) -> Node3D:
