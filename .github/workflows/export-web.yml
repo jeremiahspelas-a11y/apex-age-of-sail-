@@ -15,6 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify required APEX source files
+        run: |
+          set -euo pipefail
+          for f in project.godot physics_trial.tscn scripts/sea_trial.gd scripts/sailing_physics.gd assets/apex_pinnace_v9.glb; do
+            if [ ! -s "$f" ]; then echo "::error file=$f::Missing required APEX game file"; exit 1; fi
+          done
       - name: Install Godot and Web templates
         run: |
           set -euo pipefail
