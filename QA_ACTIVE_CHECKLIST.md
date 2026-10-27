@@ -20,6 +20,13 @@ Never mark visually complete based on a GitHub build or commit alone.
 - Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
 - Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
 
+## Historical vessel baseline and third-party evaluation
+- Target **circa 1680–1700 colonial/privateer small armed sloop** (working reference, not a historically surveyed specific vessel). Late-17th-century trading sloops commonly carried short-gaff mainsail, staysail, jib and sometimes square canvas; reference: https://www.colonialsociety.org/node/1977 . Adaptation to the existing three-masted GLB requires a deliberate rebuild, not a label swap.
+- Rope candidates researched: MIT `mikest/halyard` https://github.com/mikest/halyard (Godot 4.5+, simulation with anchors and nautical roadmap, native build/integration risk for browser); MIT `sanyabeast/verlet_rope_4_gd` https://github.com/sanyabeast/verlet_rope_4_gd (GDScript 3D rope and attachments; preferred evaluation path for Android web); MIT `mphe/GDNative-Ropesim` https://github.com/mphe/GDNative-Ropesim (2D C++ GDExtension; not suitable for immediate WebGL ship rigging). **No third-party code copied or installed yet.**
+- Build 40595277007 FAILED: `ship_assembly.gd` used `is_connected`, colliding with Godot `Object.is_connected(StringName, Callable)`. Renamed to `is_assembly_connected` (aaf9373b); rerun is required before adding other code.
+- [ ] Choose a documented *specific* historic hull lines plan and reconcile proportions, sail plan, tiller steering, and GLB model with it.
+- [ ] Inspect license and Godot/HTML5 compatibility of GDScript rope addon before vendor-integration.
+
 ## Master-rig connection implementation — October 27
 - MasterAssembly now subscribes to the helm's `steering_connection_changed` signal; toggling ROPE CUT records `steering_rope_connected` without falsely disconnecting all helm machinery (commits a6b7861b and 2cd5349b). **Source integrated; runtime verification pending.**
 - [ ] Confirm master assembly initializes and event fires when ROPE CUT is pressed.
