@@ -21,6 +21,8 @@ var ocean: Node
 var elapsed := 0.0
 var _controlled_heading := 0.0
 var _controlled_speed := 0.0
+var _visual_roll := 0.0
+var _visual_pitch := 0.0
 var probes := [Vector3(-1.5,-0.7,-5.0), Vector3(1.5,-0.7,-5.0), Vector3(-1.5,-0.7,5.0), Vector3(1.5,-0.7,5.0)]
 func _ready() -> void:
  ocean = get_node_or_null(ocean_path)
@@ -45,12 +47,25 @@ func _physics_process(delta: float) -> void:
  if freeze:
   var target_height := _height(global_position.x,global_position.z) + waterline_offset
   var p := global_position
-  p.y = move_toward(p.y,target_height,delta * 0.35)
+  p.y = lerpf(p.y,target_height,clampf(delta * 2.2,0.0,1.0))
+  # Four hull probes recover the wave-driven pitching and rolling used in Dragon's Rest.
+  var stern_port: Vector3 = global_transform * probes[2]
+  var stern_starboard: Vector3 = global_transform * probes[3]
+  var bow_port: Vector3 = global_transform * probes[0]
+  var bow_starboard: Vector3 = global_transform * probes[1]
+  var front_height: float = (_height(bow_port.x,bow_port.z) + _height(bow_starboard.x,bow_starboard.z)) * 0.5
+  var back_height: float = (_height(stern_port.x,stern_port.z) + _height(stern_starboard.x,stern_starboard.z)) * 0.5
+  var port_height: float = (_height(bow_port.x,bow_port.z) + _height(stern_port.x,stern_port.z)) * 0.5
+  var starboard_height: float = (_height(bow_starboard.x,bow_starboard.z) + _height(stern_starboard.x,stern_starboard.z)) * 0.5
+  var target_pitch: float = clampf(atan2(back_height-front_height,10.0),-0.14,0.14)
+  var target_roll: float = clampf(atan2(port_height-starboard_height,3.0),-0.20,0.20)
+  _visual_pitch = lerpf(_visual_pitch,target_pitch,clampf(delta*1.7,0.0,1.0))
+  _visual_roll = lerpf(_visual_roll,target_roll,clampf(delta*1.7,0.0,1.0))
   var apparent_wind := wind_world.length()
   var target_speed := apparent_wind * 0.10 * reef_fraction * maxf(0.15,absf(sin(sheet_angle)))
   _controlled_speed = move_toward(_controlled_speed,target_speed,delta * 0.2)
   _controlled_heading += rudder_input * _controlled_speed * delta * 0.045
-  rotation.y = _controlled_heading
+  rotation = Vector3(_visual_pitch,_controlled_heading,_visual_roll)
   global_position = p + (-global_basis.z * _controlled_speed * delta)
   return
  var basis := global_transform.basis
