@@ -20,6 +20,12 @@ Never mark visually complete based on a GitHub build or commit alone.
 - Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
 - Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
 
+## Master rig integration (new)
+- Added `scripts/ship_assembly.gd` (d3c8c528) and mounted `MasterAssembly` on the Boat scene (429fe682). The registry discovers HullVisual, ShipStructure, ShipIntegrity, Mechanisms and Wetness, verifies required subassemblies, and exposes connection status. **This is a master assembly interface, not physical fasteners, constraints, or a skinned rig.**
+- [ ] Verify Godot scene startup, registry populated, and no missing assemblies.
+- [ ] Connect helm rope failure, mast failures, structural fasteners, and detachable parts to master assembly events.
+- [ ] Create documented attachment sockets and transform inheritance tests for sails, rigging, steering, hull and interior.
+
 ## Current construction step
 - Added `GarboardAndKeelBottom` with indexed triangles connecting provisional port/starboard garboard lower edges to a central keel line; commit d53ea22a. **Not certified watertight**, remains open at top, not yet rendered/validated. This change follows earlier port/starboard planking and end-cap prototypes.
 - Latest previous Actions run 40594769813 was still in progress when checked. Several preceding runs were cancelled by newer commits; a cancelled run is not a build pass.
