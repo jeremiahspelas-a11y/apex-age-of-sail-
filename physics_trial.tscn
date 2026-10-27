@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 [ext_resource type="Script" path="res://scripts/sea_trial.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ship_structure.gd" id="6"]
 [ext_resource type="Script" path="res://addons/ocean3d_lite/ocean_surface.gd" id="2"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/weather_controller.gd" id="11"]
 [ext_resource type="Script" path="res://scripts/ship_wetness.gd" id="12"]
 [ext_resource type="Script" path="res://scripts/character_import.gd" id="13"]
+[ext_resource type="Script" path="res://scripts/ship_integrity.gd" id="14"]
 [sub_resource type="BoxShape3D" id="Hull"]
 size = Vector3(4.6, 2.0, 15.0)
 [sub_resource type="CapsuleShape3D" id="PlayerCapsule"]
@@ -27,6 +28,8 @@ position = Vector3(0, 0.75, 0)
 [node name="HullCollision" type="CollisionShape3D" parent="Boat"]
 shape = SubResource("Hull")
 position = Vector3(0, -0.7, 0)
+[node name="ShipIntegrity" type="Node" parent="Boat"]
+script = ExtResource("14")
 [node name="ShipStructure" type="Node3D" parent="Boat"]
 script = ExtResource("6")
 [node name="HullVisual" parent="Boat" instance=ExtResource("5")]
