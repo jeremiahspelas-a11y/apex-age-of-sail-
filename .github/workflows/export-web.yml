@@ -53,6 +53,40 @@ jobs:
           if grep -E "SCRIPT ERROR:|SHADER ERROR:|Parse Error:|Failed to load script|Invalid call|Invalid access" godot-runtime.log; then echo "::error::Godot runtime errors"; exit 1; fi
           test -s web/index.wasm
           test -s web/index.pck
+      - name: Browser graphics smoke test and screenshots
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+          mkdir -p visual-qa
+          python3 -m http.server 8765 --directory web > visual-qa/server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          node <<'JS'
+          const { chromium, devices } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({ headless: true, args: ['--enable-webgl', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+            const context = await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 960, height: 540 }, deviceScaleFactor: 1 });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', e => errors.push('PAGE: ' + e.message));
+            page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
+            await page.goto('http://127.0.0.1:8765/index.html', { waitUntil: 'domcontentloaded', timeout: 45000 });
+            await page.waitForTimeout(16000);
+            await page.screenshot({ path: 'visual-qa/initial.png' });
+            await page.waitForTimeout(5000);
+            await page.screenshot({ path: 'visual-qa/after-5s.png' });
+            const canvas = await page.locator('canvas').count();
+            require('fs').writeFileSync('visual-qa/report.json', JSON.stringify({ canvas, errors }, null, 2));
+            await browser.close();
+            if (!canvas || errors.some(e => /WebGL|shader|SCRIPT ERROR|uncaught|Failed to load/i.test(e))) process.exitCode = 1;
+          })().catch(e => { console.error(e); process.exitCode = 1; });
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apex-visual-qa
+          path: visual-qa/
       - uses: actions/upload-artifact@v4
         with:
           name: apex-godot-web
