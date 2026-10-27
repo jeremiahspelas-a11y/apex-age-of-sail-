@@ -8,9 +8,9 @@ func wave_height(x: float,z: float,_t: float) -> float:
  return Ocean.get_height(x,z)
 func _ready() -> void:
  var plane := PlaneMesh.new()
- plane.size = Vector2(800,800)
- plane.subdivide_width = 240
- plane.subdivide_depth = 240
+ plane.size = Vector2(480,480)
+ plane.subdivide_width = 320
+ plane.subdivide_depth = 320
  mesh = plane
  var mat := ShaderMaterial.new()
  mat.shader = preload("res://addons/ocean3d_lite/shaders/ocean.gdshader")
