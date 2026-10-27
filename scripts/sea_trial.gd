@@ -11,6 +11,14 @@ var god_mode := false
 var photo_mode := false
 var fly_speed := 9.0
 var fly_buttons: Dictionary = {}
+var stick_move := Vector2.ZERO
+var stick_look := Vector2.ZERO
+var left_touch := -1
+var right_touch := -1
+var left_center := Vector2.ZERO
+var right_center := Vector2.ZERO
+var stick_radius := 58.0
+var stick_canvas: Control
 var fly_yaw := 0.0
 var fly_pitch := 0.0
 var photo_ui: Control
@@ -103,18 +111,12 @@ func _build_fly_controls(canvas: CanvasLayer) -> void:
  canvas.add_child(fly_root)
  fly_ui = fly_root
  fly_ui.visible = false
- var pad := HBoxContainer.new()
- pad.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- pad.offset_left = 12.0
- pad.offset_top = -80.0
- fly_root.add_child(pad)
- for item in [["◀","left"],["▲","forward"],["▼","back"],["▶","right"]]:
-  var b := Button.new()
-  b.text = item[0]
-  b.custom_minimum_size = Vector2(60,60)
-  pad.add_child(b)
-  b.button_down.connect(_fly_press.bind(item[1]))
-  b.button_up.connect(_fly_release.bind(item[1]))
+ var sticks := Control.new()
+ sticks.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ sticks.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ fly_root.add_child(sticks)
+ stick_canvas = sticks
+ sticks.draw.connect(_draw_sticks)
  var vertical := VBoxContainer.new()
  vertical.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
  vertical.offset_left = -100.0
@@ -146,6 +148,10 @@ func _build_fly_controls(canvas: CanvasLayer) -> void:
 func _toggle_fly() -> void:
  god_mode = not god_mode
  fly_buttons.clear()
+ stick_move = Vector2.ZERO
+ stick_look = Vector2.ZERO
+ left_touch = -1
+ right_touch = -1
  fly_ui.visible = god_mode
  normal_ui.visible = not god_mode
  photo_mode = false
@@ -174,7 +180,9 @@ func _fly_release(key: String) -> void:
  fly_buttons.erase(key)
 
 func _fly_step(delta: float) -> void:
- var axis := Vector3.ZERO
+ var axis := Vector3(stick_move.x, 0.0, stick_move.y)
+ fly_yaw -= stick_look.x * delta * 2.0
+ fly_pitch = clampf(fly_pitch - stick_look.y * delta * 1.7, -1.45, 1.45)
  if fly_buttons.has("forward") or Input.is_key_pressed(KEY_W): axis.z -= 1.0
  if fly_buttons.has("back") or Input.is_key_pressed(KEY_S): axis.z += 1.0
  if fly_buttons.has("left") or Input.is_key_pressed(KEY_A): axis.x -= 1.0
@@ -183,8 +191,21 @@ func _fly_step(delta: float) -> void:
  if fly_buttons.has("down") or Input.is_key_pressed(KEY_CTRL): axis.y -= 1.0
  var direction := camera.global_basis * Vector3(axis.x,0.0,axis.z)
  direction.y = axis.y
- camera.global_position += direction.normalized() * fly_speed * delta
+ camera.global_position += direction.limit_length(1.0) * fly_speed * delta
  camera.rotation = Vector3(fly_pitch,fly_yaw,0.0)
+
+func _draw_sticks() -> void:
+ if not god_mode:
+  return
+ var view := get_viewport().get_visible_rect().size
+ var l := left_center if left_touch != -1 else Vector2(92.0,view.y - 100.0)
+ var r := right_center if right_touch != -1 else Vector2(view.x - 92.0,view.y - 100.0)
+ for item in [[l,stick_move],[r,stick_look]]:
+  var center: Vector2 = item[0]
+  var value: Vector2 = item[1]
+  stick_canvas.draw_circle(center,stick_radius,Color(0.12,0.17,0.22,0.4))
+  stick_canvas.draw_arc(center,stick_radius,0.0,TAU,48,Color(0.85,0.91,1.0,0.7),2.0)
+  stick_canvas.draw_circle(center + value * stick_radius,22.0,Color(0.86,0.92,1.0,0.8))
 
 func _jump() -> void:
  Input.action_press("ui_accept")
@@ -227,6 +248,33 @@ func _unhandled_input(event: InputEvent) -> void:
    KEY_S: command("lower")
    KEY_Q: command("sheet_l")
    KEY_E: command("sheet_r")
+ if god_mode and event is InputEventScreenTouch:
+  var half := get_viewport().get_visible_rect().size.x * 0.5
+  if event.pressed:
+   if event.position.x < half and left_touch == -1:
+    left_touch = event.index
+    left_center = event.position
+    stick_move = Vector2.ZERO
+   elif event.position.x >= half and right_touch == -1:
+    right_touch = event.index
+    right_center = event.position
+    stick_look = Vector2.ZERO
+  else:
+   if event.index == left_touch:
+    left_touch = -1
+    stick_move = Vector2.ZERO
+   if event.index == right_touch:
+    right_touch = -1
+    stick_look = Vector2.ZERO
+  stick_canvas.queue_redraw()
+  return
+ if god_mode and event is InputEventScreenDrag:
+  if event.index == left_touch:
+   stick_move = ((event.position - left_center) / stick_radius).limit_length(1.0)
+  elif event.index == right_touch:
+   stick_look = ((event.position - right_center) / stick_radius).limit_length(1.0)
+  stick_canvas.queue_redraw()
+  return
  if event is InputEventScreenTouch:
   dragging = event.pressed and event.position.x > get_viewport().get_visible_rect().size.x * 0.5
  if event is InputEventScreenDrag and dragging and god_mode:
