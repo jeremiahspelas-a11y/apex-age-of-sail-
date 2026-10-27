@@ -17,7 +17,7 @@ void vertex() {
         float k = 6.2831853 / max(waves[i].z, 0.01);
         float c = sqrt(9.8 / k);
         float wind_alignment = 0.78 + 0.22 * abs(dot(dir, normalize(wind_direction + vec2(0.0001))));
-        float amplitude = waves[i].y * storm_scale * wind_alignment / k;
+        float amplitude = waves[i].y * storm_scale * wind_alignment;
         float phase = k * (dot(dir, pos) - c * t);
         displacement += vec3(dir.x * amplitude * cos(phase), amplitude * sin(phase), dir.y * amplitude * cos(phase));
     }
@@ -25,7 +25,7 @@ void vertex() {
     crest = displacement.y;
 }
 void fragment() {
-    float foam = smoothstep(mix(0.36, 0.13, storminess), mix(0.68, 0.32, storminess), crest);
+    float foam = smoothstep(mix(0.35, 0.25, storminess), mix(0.85, 0.55, storminess), crest);
     float ripples = sin(UV.x * 830.0 + t * 2.8) * sin(UV.y * 790.0 - t * 3.7);
     foam = max(foam, smoothstep(0.80, 0.99, ripples) * storminess * 0.10);
     ALBEDO = mix(deep_color.rgb, shallow_color.rgb, clamp(0.5 + crest, 0.0, 1.0));
