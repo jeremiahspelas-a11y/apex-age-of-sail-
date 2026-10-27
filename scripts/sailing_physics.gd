@@ -48,7 +48,9 @@ func _height(x: float,z: float) -> float:
 func _physics_process(delta: float) -> void:
  elapsed += delta
  if freeze:
-  var target_height := _height(global_position.x,global_position.z) + waterline_offset
+  var integrity := get_node_or_null("ShipIntegrity")
+  var flooding: float = integrity.flooded_fraction() if integrity != null else 0.0
+  var target_height := _height(global_position.x,global_position.z) + waterline_offset - flooding * 2.9
   var p := global_position
   p.y = lerpf(p.y,target_height,clampf(delta * 2.2,0.0,1.0))
   # Four hull probes recover the wave-driven pitching and rolling used in Dragon's Rest.
@@ -73,6 +75,7 @@ func _physics_process(delta: float) -> void:
   var point_of_sail: float = smoothstep(48.0,95.0,off_bow) * (1.0 - 0.22 * smoothstep(155.0,180.0,off_bow))
   var trim_efficiency: float = clampf(1.0 - absf(absf(sheet_angle) - 0.55) * 0.42,0.25,1.0)
   var target_speed: float = wind_speed * 0.18 * reef_fraction * point_of_sail * trim_efficiency
+  target_speed *= (1.0 - flooding * 0.75)
   _controlled_speed = move_toward(_controlled_speed,target_speed,delta * (0.20 if target_speed >= _controlled_speed else 0.37))
   _controlled_heading += rudder_input * _controlled_speed * delta * 0.045
   rotation = Vector3(_visual_pitch,_controlled_heading,_visual_roll)
