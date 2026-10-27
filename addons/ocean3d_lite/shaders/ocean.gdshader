@@ -6,6 +6,9 @@ uniform float storm_scale : hint_range(0.0, 4.0) = 1.0;
 uniform float t = 0.0;
 uniform vec2 wind_direction = vec2(1.0,0.0);
 uniform float storminess = 0.0;
+uniform vec2 ship_position = vec2(0.0);
+uniform vec2 ship_forward = vec2(0.0, -1.0);
+uniform float ship_speed = 0.0;
 uniform vec3 waves[4];
 varying float crest;
 varying vec2 wave_world;
@@ -46,6 +49,17 @@ void fragment() {
     float foam = smoothstep(mix(0.36, 0.25, storminess), mix(0.72, 0.47, storminess), crest + slope_strength * 0.65);
     float ripples = sin(UV.x * 830.0 + t * 2.8) * sin(UV.y * 790.0 - t * 3.7);
     foam = max(foam, smoothstep(0.80, 0.99, ripples) * storminess * 0.10);
+    // Localized V-shaped wake behind the moving hull, in world coordinates.
+    vec2 aft = wave_world - ship_position;
+    vec2 heading = normalize(ship_forward + vec2(0.00001));
+    float behind = -dot(aft, heading);
+    float sideways = abs(heading.x * aft.y - heading.y * aft.x);
+    float wake_width = 1.5 + behind * 0.32;
+    float wake_edges = 1.0 - smoothstep(0.45, 1.6, abs(sideways - wake_width));
+    float wake_body = (1.0 - smoothstep(0.0, 2.4, sideways)) * 0.35;
+    float wake_length = smoothstep(0.0, 3.0, behind) * (1.0 - smoothstep(22.0, 45.0, behind));
+    float wake = (wake_edges * 0.75 + wake_body) * wake_length * clamp(ship_speed * 0.6, 0.0, 0.8);
+    foam = max(foam, wake);
     float animated_banding = sin(wave_world.x * 0.85 + wave_world.y * 0.34 - t * 1.9) * sin(wave_world.y * 1.15 + t * 1.4);
     ALBEDO = mix(deep_color.rgb, shallow_color.rgb, clamp(0.38 + crest * 0.58 + slope_strength * 0.7 + animated_banding * 0.045, 0.0, 1.0));
     ALBEDO = mix(ALBEDO, vec3(0.7, 0.83, 0.85), foam * 0.45);
