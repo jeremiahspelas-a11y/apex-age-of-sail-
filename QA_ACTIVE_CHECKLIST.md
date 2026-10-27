@@ -20,6 +20,9 @@ Never mark visually complete based on a GitHub build or commit alone.
 - Evaluated but **not copied**: Gaea for Godot (MIT; primarily procedural terrain, not historical wooden hull geometry): https://github.com/gaea-godot/gaea . Do not add irrelevant dependencies simply because they are open source.
 - Reference ship lines are still required before claiming historical fidelity. Procedurally curved ribs currently use provisional station formulas, not a specific historic ship plan.
 
+## Latest CI improvement
+- Added a deterministic CI test of native timber construction presence, eleven station loop, tapered rib geometry and local-to-ship member placement (commit 41b21aed). **This is a source-level regression test, not structural physics validation.** The corresponding build result and screenshots must be checked before accepting it.
+
 ## Current tracked work
 | ID | Feature | Status | Evidence / next required test |
 |---|---|---|---|
