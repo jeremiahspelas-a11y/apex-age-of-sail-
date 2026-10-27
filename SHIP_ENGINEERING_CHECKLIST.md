@@ -53,8 +53,8 @@
 
 ### 6. Helm and rudder mechanical loop
 - [ ] Wheel geometry, axle/drum, tiller ropes, running blocks, quadrant/tiller, gudgeons/pintles, blade and hard stops.
-- [ ] Wheel movement winds lines; line tension rotates rudder; flow across rudder produces lateral hydrodynamic force and yaw torque.
-- [ ] Loss of tiller rope or broken rudder disables or degrades steering. Ship heading never set directly by wheel input.
+- [ ] Wheel movement winds lines; line tension rotates rudder; flow across rudder produces lateral hydrodynamic force and yaw torque. **Partial implementation (Oct 27, 2026): wheel/drum/rope displacement and rudder angle feed a water-speed-dependent lift force; yaw torque integrated through estimated inertia. Rope stiffness, pulley geometry, full 6-DOF dynamics and visual validation pending.**
+- [ ] Loss of tiller rope or broken rudder disables or degrades steering. Ship heading never set directly by wheel input. **Partial implementation: test ROPE CUT toggles steering transmission; old direct heading command removed; needs dynamic test and browser visual verification.**
 
 ### 7. Working spaces and onboard systems
 - [ ] Forecastle/quarterdeck, companionway, orlop/hold, cabins, gun deck (if appropriate), crew stations, ballast, bilge and pumps.
