@@ -8,8 +8,8 @@ extends Node3D
 var phase := 0.0
 var current_storm := 0.0
 var sun: DirectionalLight3D
-var sky_material: ProceduralSkyMaterial
-var cloud_banks: Array[MeshInstance3D] = []
+var sky_material: PhysicalSkyMaterial
+var cloud_banks: Array[Node3D] = []
 var cloud_materials: Array[StandardMaterial3D] = []
 var base_cloud_positions: Array[Vector3] = []
 var cloud_clock := 0.0
@@ -29,7 +29,9 @@ func _ready() -> void:
  var env := Environment.new()
  env.background_mode = Environment.BG_SKY
  var sky := Sky.new()
- sky_material = ProceduralSkyMaterial.new()
+ sky_material = PhysicalSkyMaterial.new()
+ sky_material.sun_disk_scale = 2.5
+ sky_material.turbidity = 3.0
  sky_material.use_debanding = true
  sky.sky_material = sky_material
  env.sky = sky
@@ -41,33 +43,36 @@ func _ready() -> void:
  _build_clouds()
 
 func _build_clouds() -> void:
+ # Each cloud is a cluster of irregular volumetric lobes, not a flat disc.
  var rng := RandomNumberGenerator.new()
  rng.seed = seed_value
- for i in 32:
-  var mesh_node := MeshInstance3D.new()
-  mesh_node.name = "CloudBank_%02d" % i
-  var sphere := SphereMesh.new()
-  sphere.radius = 1.0
-  sphere.height = 2.0
-  sphere.radial_segments = 12
-  sphere.rings = 6
-  mesh_node.mesh = sphere
+ for i in 24:
+  var bank := Node3D.new()
+  bank.name = "CloudBank_%02d" % i
+  add_child(bank)
   var mat := StandardMaterial3D.new()
-  mat.albedo_color = Color(0.91, 0.94, 0.97, 0.65)
+  mat.albedo_color = Color(0.96,0.97,0.99,0.86)
   mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-  mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
   mat.roughness = 1.0
   mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-  mesh_node.material_override = mat
-  mesh_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-  var angle := rng.randf_range(0.0, TAU)
-  var distance := rng.randf_range(115.0, 330.0)
-  var altitude := rng.randf_range(58.0, 115.0)
-  var p := Vector3(cos(angle)*distance, altitude, sin(angle)*distance)
-  base_cloud_positions.append(p)
-  mesh_node.scale = Vector3(rng.randf_range(17,35), rng.randf_range(3,9), rng.randf_range(12,31))
-  add_child(mesh_node)
-  cloud_banks.append(mesh_node)
+  for j in 7:
+   var lobe := MeshInstance3D.new()
+   var sphere := SphereMesh.new()
+   sphere.radius = 1.0
+   sphere.height = 2.0
+   sphere.radial_segments = 10
+   sphere.rings = 6
+   lobe.mesh = sphere
+   lobe.material_override = mat
+   lobe.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+   lobe.position = Vector3(rng.randf_range(-25.0,25.0),rng.randf_range(-6.0,10.0),rng.randf_range(-17.0,17.0))
+   lobe.scale = Vector3(rng.randf_range(11.0,23.0),rng.randf_range(7.0,16.0),rng.randf_range(10.0,24.0))
+   bank.add_child(lobe)
+  var angle := rng.randf_range(0.0,TAU)
+  var distance := rng.randf_range(145.0,450.0)
+  var altitude := rng.randf_range(80.0,160.0)
+  base_cloud_positions.append(Vector3(cos(angle)*distance,altitude,sin(angle)*distance))
+  cloud_banks.append(bank)
   cloud_materials.append(mat)
 
 func _process(delta: float) -> void:
@@ -89,17 +94,17 @@ func _process(delta: float) -> void:
  sun.rotation_degrees = Vector3(sun_elevation, -35.0 + phase*7.0, 0.0)
  sun.light_energy = 1.5 - storm*0.9
  sun.light_color = Color(1.0,0.95,0.84).lerp(Color(0.79,0.84,0.93),storm)
- sky_material.sky_top_color = Color(0.12,0.37,0.73).lerp(Color(0.085,0.11,0.17),storm)
- sky_material.sky_horizon_color = Color(0.67,0.78,0.91).lerp(Color(0.26,0.30,0.37),storm)
- sky_material.ground_horizon_color = Color(0.46,0.57,0.68).lerp(Color(0.22,0.26,0.31),storm)
+ sky_material.turbidity = lerpf(2.2,8.0,storm)
+ sky_material.mie_coefficient = lerpf(0.004,0.014,storm)
+ sky_material.rayleigh_coefficient = lerpf(2.5,1.3,storm)
  var camera := get_viewport().get_camera_3d()
  var center := Vector3.ZERO if camera == null else Vector3(camera.global_position.x, 0.0, camera.global_position.z)
  for i in cloud_banks.size():
   var p := base_cloud_positions[i]
   var drift: Vector3 = wind.normalized()*cloud_clock*(0.8 + 0.35*float(i%4))
-  var dx: float = fposmod(p.x + drift.x + 380.0, 760.0)-380.0
-  var dz: float = fposmod(p.z + drift.z + 380.0, 760.0)-380.0
+  var dx: float = fposmod(p.x + drift.x + 520.0, 1040.0)-520.0
+  var dz: float = fposmod(p.z + drift.z + 520.0, 1040.0)-520.0
   cloud_banks[i].global_position = center + Vector3(dx,p.y,dz)
   var cover: float = clamp(0.24 + storm*0.7 + 0.12*sin(phase*2.0 + float(i)),0.0,1.0)
-  cloud_banks[i].visible = cover > 0.27 or i%3 == 0
+  cloud_banks[i].visible = cover > 0.22 or i%3 == 0
   cloud_materials[i].albedo_color = Color(0.95,0.96,0.98,0.3 + cover*0.45).lerp(Color(0.37,0.43,0.52,0.55+cover*0.25),storm)
