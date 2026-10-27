@@ -243,7 +243,7 @@ func _audit_original_projection_meshes() -> void:
   var part := child as MeshInstance3D
   if part == null or part.mesh == null:
    continue
-  var local_center := original.to_local(part.to_global(part.mesh.get_aabb().get_center()))
+  var local_center: Vector3 = original.to_local(part.to_global(part.mesh.get_aabb().get_center()))
   if absf(local_center.x) > 3.8 or local_center.z < -15.0 or local_center.z > 15.0:
    if examined < 24:
     print("APEX PROJECTION AUDIT ",part.name," at ",local_center)
