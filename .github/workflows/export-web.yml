@@ -66,6 +66,8 @@ jobs:
           assert 'build_hull_strakes()' in s, 'Hull planking build not invoked'
           assert 'for band in 8:' in s, 'Expected eight plank bands per side'
           assert 'mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)' in s, 'Continuous indexed hull surfaces missing'
+          assert 'build_end_closures()' in s, 'Hull end caps not built'
+          assert 'for end_z in [-10.9,10.9]:' in s, 'Expected bow and stern closures missing'
           print('PASS: timber construction and curved station logic is present')
           PY
       - name: Browser graphics smoke test and screenshots
