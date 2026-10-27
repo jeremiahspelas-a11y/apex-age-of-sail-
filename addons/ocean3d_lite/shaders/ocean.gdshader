@@ -9,14 +9,14 @@ uniform float storminess = 0.0;
 uniform vec2 ship_position = vec2(0.0);
 uniform vec2 ship_forward = vec2(0.0, -1.0);
 uniform float ship_speed = 0.0;
-uniform vec3 waves[4];
+uniform vec3 waves[8];
 varying float crest;
 varying vec2 wave_world;
 varying float slope_strength;
 void vertex() {
     vec2 pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
     vec3 displacement = vec3(0.0);
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 8; i++) {
         float angle = radians(waves[i].x);
         vec2 dir = vec2(cos(angle), sin(angle));
         float k = 6.2831853 / max(waves[i].z, 0.01);
@@ -32,7 +32,7 @@ void vertex() {
     // The mesh's original normals stay flat unless we compute the displaced surface derivatives.
     float dhdx = 0.0;
     float dhdz = 0.0;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 8; i++) {
         float angle = radians(waves[i].x);
         vec2 dir = vec2(cos(angle), sin(angle));
         float k = 6.2831853 / max(waves[i].z, 0.01);
