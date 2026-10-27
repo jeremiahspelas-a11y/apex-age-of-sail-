@@ -53,6 +53,18 @@ jobs:
           if grep -E "SCRIPT ERROR:|SHADER ERROR:|Parse Error:|Failed to load script|Invalid call|Invalid access" godot-runtime.log; then echo "::error::Godot runtime errors"; exit 1; fi
           test -s web/index.wasm
           test -s web/index.pck
+      - name: Verify timber construction graph and frame geometry
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('scripts/ship_structure.gd').read_text()
+          assert 'build_timber_skeleton()' in s, 'Ship construction not called'
+          assert 'func add_curved_frame(' in s, 'Curved ribs missing'
+          assert 'for station in 11:' in s, 'Frame stations missing'
+          assert 'var beam: float = 2.22 * (1.0 - 0.38*taper)' in s, 'Tapered hull stations missing'
+          assert 'member.position = pos' in s, 'Structural members not attached to local hull geometry'
+          print('PASS: timber construction and curved station logic is present')
+          PY
       - name: Browser graphics smoke test and screenshots
         run: |
           set -euo pipefail
