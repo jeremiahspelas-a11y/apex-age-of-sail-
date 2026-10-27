@@ -7,10 +7,11 @@ var clock := 0.0
 func wave_height(x: float,z: float,_t: float) -> float:
  return Ocean.get_height(x,z)
 func _ready() -> void:
+ # Dense near-field water makes short waves visible on Android; distant water remains coarse.
  var plane := PlaneMesh.new()
- plane.size = Vector2(480,480)
- plane.subdivide_width = 320
- plane.subdivide_depth = 320
+ plane.size = Vector2(220,220)
+ plane.subdivide_width = 300
+ plane.subdivide_depth = 300
  mesh = plane
  var mat := ShaderMaterial.new()
  mat.shader = preload("res://addons/ocean3d_lite/shaders/ocean.gdshader")
