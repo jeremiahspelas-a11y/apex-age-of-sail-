@@ -16,6 +16,28 @@ func _ready() -> void:
  var mat := ShaderMaterial.new()
  mat.shader = preload("res://addons/ocean3d_lite/shaders/ocean.gdshader")
  material_override = mat
+ # Four camera-centered outer patches cover the sea to the far horizon.
+ # Their central opening prevents overlapping the high-detail near-water mesh.
+ var outer: float = 3600.0
+ var inner: float = 219.0
+ var strip: float = (outer-inner)*0.5
+ for section in 4:
+  var far_mesh := PlaneMesh.new()
+  var far_node := MeshInstance3D.new()
+  var patch_size := Vector2(outer,strip) if section < 2 else Vector2(strip,inner)
+  far_mesh.size = patch_size
+  far_mesh.subdivide_width = 96 if section < 2 else 24
+  far_mesh.subdivide_depth = 24 if section < 2 else 48
+  far_node.mesh = far_mesh
+  far_node.material_override = mat
+  var offset := Vector3.ZERO
+  if section == 0: offset.z = -(inner+strip)*0.5
+  elif section == 1: offset.z = (inner+strip)*0.5
+  elif section == 2: offset.x = -(inner+strip)*0.5
+  else: offset.x = (inner+strip)*0.5
+  far_node.position = offset
+  add_child(far_node)
+  horizon_patches.append(far_node)
 func _process(_delta: float) -> void:
  clock = Ocean.time
  Ocean.storm_scale = storm_scale
