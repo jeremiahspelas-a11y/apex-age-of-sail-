@@ -11,10 +11,13 @@ var active_walk_buttons: Dictionary = {}
 var status: Label
 var _last_boat_position := Vector3.ZERO
 var _observed_speed := 0.0
+var flooding_system: Node
+var selected_compartment := 1
 func _ready() -> void:
  var canvas := CanvasLayer.new()
  add_child(canvas)
  _last_boat_position = boat.global_position
+ flooding_system = boat.get_node_or_null("ShipIntegrity")
  status = Label.new()
  status.position = Vector2(16,12)
  canvas.add_child(status)
@@ -39,6 +42,18 @@ func _ready() -> void:
   btn.custom_minimum_size = Vector2(84,54)
   sailing.add_child(btn)
   btn.pressed.connect(command.bind(action[1]))
+ var damage_actions := HBoxContainer.new()
+ damage_actions.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+ damage_actions.offset_left = -356.0
+ damage_actions.offset_right = -8.0
+ damage_actions.offset_top = 132.0
+ root.add_child(damage_actions)
+ for action in [["BREACH","breach"],["PATCH","patch"],["PUMP","pump"],["NEXT BAY","next_bay"]]:
+  var damage_button := Button.new()
+  damage_button.text = action[0]
+  damage_button.custom_minimum_size = Vector2(84,48)
+  damage_actions.add_child(damage_button)
+  damage_button.pressed.connect(command.bind(action[1]))
  var walking := HBoxContainer.new()
  walking.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
  walking.offset_left = 12.0
@@ -73,6 +88,13 @@ func command(action: String) -> void:
   "lower": reef = clamp(reef-0.1,0.0,1.0)
   "sheet_l": sheet = clamp(sheet-0.15,-1.5,1.5)
   "sheet_r": sheet = clamp(sheet+0.15,-1.5,1.5)
+  "breach":
+   if flooding_system != null: flooding_system.breach(selected_compartment)
+  "patch":
+   if flooding_system != null: flooding_system.patch(selected_compartment)
+  "pump":
+   if flooding_system != null: flooding_system.pump(8.0)
+  "next_bay": selected_compartment = (selected_compartment + 1) % 3
   "door": $Boat/Mechanisms.toggle_doors()
   "hatch": $Boat/Mechanisms.toggle_hatches()
  boat.set("rudder_input",rudder)
@@ -102,7 +124,8 @@ func _process(delta: float) -> void:
  var offset := Vector3(sin(orbit)*cos(pitch),sin(pitch)+0.42,cos(orbit)*cos(pitch))*distance
  camera.global_position = camera.global_position.lerp(boat.global_position+offset,clamp(delta*4.0,0.0,1.0))
  camera.look_at(boat.global_position+Vector3.UP*4.0)
- status.text = "APEX  |  SPEED %.1f m/s  |  RUDDER %.0f%%  |  SAIL %.0f%%" % [_observed_speed,rudder*100.0,reef*100.0]
+ var tonnes: float = flooding_system.total_water_tonnes() if flooding_system != null else 0.0
+ status.text = "APEX  |  %.1f m/s  |  FLOOD %.1f t  |  BAY %d" % [_observed_speed,tonnes,selected_compartment+1]
 func _walk_input(key: String) -> void:
  if key == "STOP":
   active_walk_buttons.clear()
