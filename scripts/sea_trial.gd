@@ -22,6 +22,8 @@ var stick_canvas: Control
 var fly_yaw := 0.0
 var fly_pitch := 0.0
 var photo_ui: Control
+var fly_toggle: Button
+var pin_button: Button
 var restore_hud_button: Button
 var fly_ui: Control
 var normal_ui: Control
@@ -104,6 +106,7 @@ func _ready() -> void:
  jump.pressed.connect(_jump)
 func _build_fly_controls(canvas: CanvasLayer) -> void:
  var toggle := Button.new()
+ fly_toggle = toggle
  toggle.text = "FLY / WALK"
  toggle.position = Vector2(12, 56)
  toggle.custom_minimum_size = Vector2(130, 48)
@@ -121,10 +124,10 @@ func _build_fly_controls(canvas: CanvasLayer) -> void:
  fly_root.add_child(sticks)
  stick_canvas = sticks
  sticks.draw.connect(_draw_sticks)
- var vertical := VBoxContainer.new()
- vertical.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
- vertical.offset_left = -100.0
- vertical.offset_top = -170.0
+ var vertical := HBoxContainer.new()
+ vertical.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+ vertical.offset_left = -92.0
+ vertical.offset_top = -78.0
  fly_root.add_child(vertical)
  for item in [["UP","up"],["DOWN","down"]]:
   var b := Button.new()
@@ -134,6 +137,7 @@ func _build_fly_controls(canvas: CanvasLayer) -> void:
   b.button_down.connect(_fly_press.bind(item[1]))
   b.button_up.connect(_fly_release.bind(item[1]))
  var pin := Button.new()
+ pin_button = pin
  pin.text = "PIN ISSUE"
  pin.position = Vector2(150, 56)
  pin.custom_minimum_size = Vector2(125, 48)
@@ -158,19 +162,22 @@ func _build_fly_controls(canvas: CanvasLayer) -> void:
 func _pin_issue() -> void:
  if not god_mode:
   _toggle_fly()
+ _reset_fly_input()
  spatial_qa.begin_pin()
 
 func _toggle_fly() -> void:
+ spatial_qa._cancel()
  god_mode = not god_mode
- fly_buttons.clear()
- stick_move = Vector2.ZERO
- stick_look = Vector2.ZERO
- left_touch = -1
- right_touch = -1
+ _reset_fly_input()
+ active_walk_buttons.clear()
+ _update_walk_vector()
  fly_ui.visible = god_mode
  normal_ui.visible = not god_mode
  photo_mode = false
  photo_ui.visible = true
+ fly_toggle.visible = true
+ pin_button.visible = true
+ spatial_qa.export_button.visible = not spatial_qa.notes.is_empty()
  restore_hud_button.visible = false
  status.visible = true
  if god_mode:
@@ -181,8 +188,22 @@ func _toggle_fly() -> void:
   fly_yaw = camera.rotation.y
   fly_pitch = camera.rotation.x
 
+func _reset_fly_input() -> void:
+ fly_buttons.clear()
+ stick_move = Vector2.ZERO
+ stick_look = Vector2.ZERO
+ left_touch = -1
+ right_touch = -1
+ if is_instance_valid(stick_canvas):
+  stick_canvas.queue_redraw()
+
 func _toggle_photo() -> void:
  photo_mode = not photo_mode
+ _reset_fly_input()
+ spatial_qa._cancel()
+ fly_toggle.visible = not photo_mode
+ pin_button.visible = not photo_mode
+ spatial_qa.export_button.visible = not photo_mode and not spatial_qa.notes.is_empty()
  status.visible = not photo_mode
  normal_ui.visible = not photo_mode and not god_mode
  fly_ui.visible = not photo_mode and god_mode
@@ -246,7 +267,29 @@ func command(action: String) -> void:
  boat.set("rudder_input",rudder)
  boat.set("reef_fraction",reef)
  boat.set("sheet_angle",sheet)
+func _input(event: InputEvent) -> void:
+ # A release over a UI control must still release the stick that owns this finger.
+ if event is InputEventScreenTouch and not event.pressed:
+  if event.index == left_touch:
+   left_touch = -1
+   stick_move = Vector2.ZERO
+  if event.index == right_touch:
+   right_touch = -1
+   stick_look = Vector2.ZERO
+  if is_instance_valid(stick_canvas):
+   stick_canvas.queue_redraw()
+
+func _notification(what: int) -> void:
+ if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+  _reset_fly_input()
+
 func _unhandled_input(event: InputEvent) -> void:
+ if god_mode and spatial_qa.is_active():
+  if spatial_qa.waiting_for_point and event is InputEventScreenTouch and event.pressed:
+   spatial_qa.pick(event.position)
+  elif spatial_qa.waiting_for_point and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+   spatial_qa.pick(event.position)
+  return
  if event is InputEventKey and event.pressed and not event.echo:
   if event.keycode == KEY_F:
    _toggle_fly()
@@ -263,12 +306,6 @@ func _unhandled_input(event: InputEvent) -> void:
    KEY_S: command("lower")
    KEY_Q: command("sheet_l")
    KEY_E: command("sheet_r")
- if god_mode and spatial_qa.waiting_for_point and event is InputEventScreenTouch:
-  if event.pressed:
-   spatial_qa.pick(event.position)
-  return
- if god_mode and spatial_qa.waiting_for_point and event is InputEventScreenDrag:
-  return
  if god_mode and event is InputEventScreenTouch:
   var half := get_viewport().get_visible_rect().size.x * 0.5
   if event.pressed:
@@ -308,7 +345,7 @@ func _unhandled_input(event: InputEvent) -> void:
   orbit -= event.relative.x*0.004
 func _process(delta: float) -> void:
  if god_mode:
-  if spatial_qa.waiting_for_point:
+  if spatial_qa.is_active():
    return
   _fly_step(delta)
   return

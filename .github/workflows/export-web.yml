@@ -1,6 +1,8 @@
 name: Export Godot Web
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 permissions:
@@ -8,7 +10,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: pages
+  group: pages-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   build:
@@ -56,6 +58,12 @@ jobs:
           if grep -E "SCRIPT ERROR:|SHADER ERROR:|Parse Error:|Failed to load script|Invalid call|Invalid access" godot-runtime.log; then echo "::error::Godot runtime errors"; exit 1; fi
           test -s web/index.wasm
           test -s web/index.pck
+      - name: Verify Spatial QA interactions and God Mode state
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/spatial_qa_test.gd 2>&1 | tee spatial-qa-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" spatial-qa-test.log; then exit 1; fi
+          grep -q "APEX SPATIAL QA TEST PASS" spatial-qa-test.log
       - name: Verify timber construction graph and frame geometry
         run: |
           python3 - <<'PY'
@@ -99,11 +107,27 @@ jobs:
             await page.screenshot({ path: 'visual-qa/initial.png' });
             await page.waitForTimeout(5000);
             await page.screenshot({ path: 'visual-qa/after-5s.png' });
-            // Touch-control regression: enable fly mode and exercise both sticks concurrently.
-            const centerLeft = { x: 92, y: 440 };
-            const centerRight = { x: 868, y: 440 };
+            // End-to-end annotation: fly, pick a rendered part, describe, save and download.
             await page.mouse.click(80, 80);
             await page.waitForTimeout(250);
+            await page.mouse.click(210, 80);
+            await page.mouse.click(480, 320);
+            await page.mouse.click(140, 240);
+            await page.keyboard.type('CI ship inspection note');
+            await page.mouse.click(55, 315);
+            const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
+            await page.mouse.click(210, 133);
+            const download = await downloadPromise;
+            await download.saveAs('visual-qa/apex-spatial-qa.json');
+            const notes = JSON.parse(require('fs').readFileSync('visual-qa/apex-spatial-qa.json', 'utf8'));
+            if (notes.schema !== 'apex-spatial-qa-v1' || notes.notes.length !== 1 ||
+                notes.notes[0].description !== 'CI ship inspection note' || !notes.notes[0].mesh_path) {
+              throw new Error('Ship note download did not match the saved surface annotation');
+            }
+            await page.screenshot({ path: 'visual-qa/note-saved.png' });
+            // Touch-control regression: exercise both sticks concurrently in the same fly session.
+            const centerLeft = { x: 92, y: 440 };
+            const centerRight = { x: 868, y: 440 };
             const client = await page.context().newCDPSession(page);
             const touch = async (type, points) => client.send('Input.dispatchTouchEvent', {
               type, touchPoints: points.map(p => ({ x:p.x, y:p.y, id:p.id, radiusX:10, radiusY:10, force:1 }))
@@ -146,9 +170,11 @@ jobs:
           name: apex-godot-web
           path: web/
       - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
         with:
           path: web/
   deploy:
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:

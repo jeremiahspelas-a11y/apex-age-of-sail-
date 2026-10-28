@@ -2,6 +2,16 @@
 
 Updated: 2026-10-27. This is the source of truth for what was *actually* verified.
 
+## God Mode and Spatial QA stabilization — 2026-10-28
+- Resumed from `7cd96530`, whose GitHub Actions run `40728831700` completed successfully. Scope: stabilize existing fly → point → describe → save → continue flow; preserve original ship asset and design.
+- Reproduced stale selection on the original code: `begin_pin()` retained an earlier mesh selection and allowed a note to save without selecting a new surface.
+- Clear pending selections/previews on restart/cancel; a missed ray stays in picking mode; reject blank notes; freeze the flight camera throughout selection and editing. Clear held input on pinning, mode change and application focus loss; process touch releases before GUI consumption. Place UP/DOWN between the sticks rather than over the right stick.
+- Saved pins now carry visible numbers and remain children of the selected ship mesh. Hide HUD cancels pending annotations and retains SHOW HUD.
+- Local Godot **4.7.2**: import and Web release export passed; `tests/spatial_qa_test.gd` passed real triangle hit/miss, save/cancel, mesh-following numbered marker, JSON export, independent two-finger stick state, release cleanup, editing freeze and mode transitions.
+- CI now runs the interaction test on pull requests as well as main. PR builds produce artifacts without deploying or cancelling main's Pages run. Tests are excluded from the exported game.
+- Local Chromium with Pixel 7 emulation at 960×540: opened and inspected flight controls, selected a real imported cannon-barrel triangle, typed and saved a note, then downloaded and parsed `apex-spatial-qa.json` with the expected description, mesh path, local point and triangle index. Flight, editor and saved-pin screenshots were visually reviewed; no browser console/page errors were captured. CI repeats this export assertion.
+- Physical Android acceptance and browser multi-touch behavior remain pending; headless event tests alone do not establish Android usability. Unresolved ship construction/water/sky issues below remain open.
+
 ## Ship silhouette restoration and noon lighting — 2026-10-27
 - New Android screenshots show bow/stern outline appears blocky/open, non-period-looking protruding rods, flat canvas, repeating clouds, and mirror-like blue water. **These are now the most urgent visual priorities**; rig and gameplay features are paused. Screenshots are evidence for the user-visible deployed version, not necessarily this commit.
 - The imported GLB contains both `legacy_000_Fairing-study wooden hull` and `V6_closed_hull`; keep the latter and hide the overlapping older fairing-study mesh only when both are found. This is a non-destructive test of whether that duplicate causes the ugly bow and stern. If the old fairing proved necessary, revert this specific visibility setting, not the full ship.
