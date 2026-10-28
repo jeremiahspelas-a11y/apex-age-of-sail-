@@ -224,7 +224,8 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
   state.linear_velocity = Vector3.ZERO
   state.angular_velocity = Vector3.ZERO
   _trial_requested = false
- hydro_report = hydro.evaluate(state.transform,Callable(self,"_height"),center_of_mass,state.linear_velocity,state.angular_velocity)
+ var flow_at := Callable(ocean,"get_velocity") if ocean!=null and ocean.has_method("get_velocity") else Callable()
+ hydro_report = hydro.evaluate(state.transform,Callable(self,"_height"),center_of_mass,state.linear_velocity,state.angular_velocity,flow_at)
  rig_report = rig_pressure.evaluate(state.transform*center_of_mass,wind_world,state.linear_velocity,state.angular_velocity,reef_fraction,state.transform)
  state.apply_central_force(hydro_report.buoyancy+hydro_report.drag+rig_report.force)
  state.apply_torque(hydro_report.buoyancy_torque+hydro_report.drag_torque+rig_report.torque)

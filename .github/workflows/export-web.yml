@@ -88,6 +88,20 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/yard_brace_test.gd 2>&1 | tee yard-brace-test.log
           if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" yard-brace-test.log; then exit 1; fi
           grep -q "APEX YARD BRACE TEST PASS" yard-brace-test.log
+      - name: Verify shared sea and procedural weather
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/environment_test.gd 2>&1 | tee environment-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" environment-test.log; then exit 1; fi
+          grep -q "APEX ENVIRONMENT TEST PASS" environment-test.log
+      - name: Verify optional VR input and desktop fallback
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/vr_input_test.gd 2>&1 | tee vr-input-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" vr-input-test.log; then exit 1; fi
+          grep -q "APEX VR INPUT TEST PASS" vr-input-test.log
+      - name: Verify co-op host, clients and stalled receiver
+        run: python3 tests/run_coop_test.py ./Godot_v4.7.2-stable_linux.x86_64
       - name: Browser graphics smoke test and screenshots
         timeout-minutes: 10
         run: |
@@ -190,6 +204,9 @@ jobs:
             if (!canvas || errors.some(e => /WebGL|shader|SCRIPT ERROR|uncaught|Failed to load/i.test(e))) process.exitCode = 1;
           })().catch(e => { console.error(e); process.exitCode = 1; });
           JS
+      - name: Verify two browser clients share the host ship
+        timeout-minutes: 6
+        run: node tests/browser_coop.cjs
       - name: Publish visible QA evidence with the game
         if: success()
         run: |

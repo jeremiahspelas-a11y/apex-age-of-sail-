@@ -67,8 +67,14 @@ func _surface(p: Vector3,heights: PackedFloat64Array) -> float:
  var b := lerpf(heights[(iz+1)*3+ix],heights[(iz+1)*3+ix+1],fx-ix)
  return lerpf(a,b,fz-iz)
 
-func evaluate(transform: Transform3D,height_at: Callable,local_com: Vector3 = Vector3.ZERO,linear: Vector3 = Vector3.ZERO,angular: Vector3 = Vector3.ZERO) -> Dictionary:
+func evaluate(transform: Transform3D,height_at: Callable,local_com: Vector3 = Vector3.ZERO,linear: Vector3 = Vector3.ZERO,angular: Vector3 = Vector3.ZERO,flow_at: Callable = Callable()) -> Dictionary:
  var heights := _water_samples(transform,height_at)
+ var flows := PackedVector3Array()
+ if flow_at.is_valid():
+  for row in water_rows:
+   for side in 3:
+    var p := transform*Vector3(lerpf(bounds.position.x,bounds.end.x,float(side)*0.5),0,lerpf(bounds.position.z,bounds.end.z,float(row)/float(water_rows-1)))
+    flows.append(flow_at.call(p.x,p.z))
  var com := transform*local_com
  var buoyancy := Vector3.ZERO
  var moment := Vector3.ZERO
@@ -95,6 +101,14 @@ func evaluate(transform: Transform3D,height_at: Callable,local_com: Vector3 = Ve
   var force := Vector3.UP*(DENSITY*GRAVITY*displaced)
   var arm := center-com
   var point_velocity := linear+angular.cross(arm)
+  if not flows.is_empty():
+   var fx := clampf((column.bottom.x-bounds.position.x)/bounds.size.x*2.0,0.0,2.0)
+   var fz := clampf((column.bottom.z-bounds.position.z)/bounds.size.z*float(water_rows-1),0.0,float(water_rows-1))
+   var ix := mini(int(fx),1)
+   var iz := mini(int(fz),water_rows-2)
+   var a := flows[iz*3+ix].lerp(flows[iz*3+ix+1],fx-ix)
+   var b := flows[(iz+1)*3+ix].lerp(flows[(iz+1)*3+ix+1],fx-ix)
+   point_velocity -= a.lerp(b,fz-iz)
   var local_velocity := inverse*point_velocity
   var resistance := transform.basis*(-local_velocity*damping_rates)*(DENSITY*displaced)
   buoyancy += force

@@ -10,6 +10,10 @@ The first-person trainer is the integration scene for mechanics that can later b
 | `steering_transmission.gd` | Geometry/configuration, fixed time step, helm effort or crew target, water hinge torque | Wheel/rudder angles and velocities, line tensions, angular accelerations | Godot math/RefCounted |
 | `yard_brace.gd` | Yard span, block/pin locations, fixed time step, wind hinge torque, hand/belay commands | Yard and tail state, tensions and balanced attachment reactions | Godot math/RefCounted |
 | `sail_pressure_surface.gd` | Triangle geometry, wind and rigid/relative hinge motion | Panel pressure resultant and moments about COM and hinge | Godot math/RefCounted |
+| `sea_spectrum.gd` | Seed, position, time and sea amplitude | Displacement, height, normal, compression and water velocity | Godot math/RefCounted |
+| `weather_field.gd` | Seed, position, time and optional scenario | Wind, gust/front effects, cloud/rain/visibility/pressure/temperature | Godot noise/RefCounted |
+| `vr_hand_input.gd` | Hand positions and current wheel state | Bounded torque or haul/ease command | Godot math/RefCounted |
+| `crew_session.gd`, `vr_sailing.gd` | Host/client transport or WebXR tracking | Authority/replication or tracked-input adapters | Current trainer scene |
 | `rig_pressure_load.gd` | Bound sail meshes, wind, body state, effective sail area | Per-sail pressure loads and resultant force/moment | Current sail scene adapter |
 | `sailing_physics.gd` | Ocean, wind, mass, compartments and mechanism adapter | Forces applied to Godot's rigid body | APEX vessel integration |
 | `ship_mechanisms_v9.gd` | Imported sockets/meshes, steering state and trim | Visible machinery, openings and rig articulation | Current pinnace geometry |
@@ -41,7 +45,7 @@ func calm_water(_x: float,_z: float) -> float:
 # state.apply_torque(load.buoyancy_torque+load.drag_torque)
 ```
 
-All returned vectors are in world coordinates; moments are about the supplied body-local COM transformed into world space. Godot supplies gravity separately; do not add gravity again. Water uses a world-space `(x,z) → height` callback, sea-water density 1,025 kg/m³ and gravity 9.8 m/s². Match the host world's gravity. Resistance rates are empirical and configurable. This column/heightfield approximation does not resolve slamming, overhangs, entrapped air or moving water velocity. `equilibrium_height(mass_kg)` finds flat-water equilibrium for an upright, unsaturated hull; it is a setup helper, not a motion controller.
+All returned vectors are in world coordinates; moments are about the supplied body-local COM transformed into world space. Godot supplies gravity separately; do not add gravity again. Water uses a world-space `(x,z) → height` callback, sea-water density 1,025 kg/m³ and gravity 9.8 m/s². Match the host world's gravity. The optional sixth argument to `evaluate` is `(x,z) → Vector3` water velocity; resistance then uses relative flow from a sampled/interpolated grid. Resistance rates are empirical and configurable. This approximation does not resolve slamming, overhangs or entrapped air. `equilibrium_height(mass_kg)` finds flat-water equilibrium for an upright, unsaturated hull; it is a setup helper, not a motion controller.
 
 ## Steering solver
 

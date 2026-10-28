@@ -44,7 +44,21 @@ var brace_ui: GridContainer
 var brace_status: Label
 var brace_select: Button
 var selected_brace := 0
+var session: Node
+var coop_panel: PanelContainer
+var coop_status: Label
+var coop_url: LineEdit
+var weather_choice: OptionButton
+var vr: Node
+var coop_toggle: Button
+var vr_button: Button
+var session_notice: Label
+var notice_timer := 0.0
 func _ready() -> void:
+ session = preload("res://scripts/crew_session.gd").new()
+ session.name = "CrewSession"
+ add_child(session)
+ session.setup(self)
  var canvas := CanvasLayer.new()
  add_child(canvas)
  hud_layer = canvas
@@ -67,6 +81,7 @@ func _ready() -> void:
  trainer_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
  root.add_child(trainer_hint)
  _build_fly_controls(canvas)
+ _build_session_controls(canvas,root)
  spatial_qa = preload("res://scripts/spatial_qa.gd").new()
  add_child(spatial_qa)
  spatial_qa.setup(boat, camera, canvas)
@@ -109,6 +124,13 @@ func _ready() -> void:
  root.add_child(trial_button)
  trial_button.pressed.connect(_toggle_force_trial)
  _build_brace_controls(root)
+ if OS.has_feature("web"):
+  var initial_weather: Variant = JavaScriptBridge.eval("new URLSearchParams(location.search).get('weather')")
+  if initial_weather is String and $Weather.set_scenario(initial_weather):
+   $Weather.state = $Weather.field.sample(Vector2.ZERO,Ocean.time)
+   $Weather.sea_scale = $Weather.state.target_sea_scale
+   $Weather._apply_state(0.0)
+   weather_choice.select(["Evolving","Calm","Breeze","Squall","Storm"].find(initial_weather))
  if OS.has_feature("web") and JavaScriptBridge.eval("new URLSearchParams(location.search).get('simulation') === 'forces'"):
   _toggle_force_trial()
  var walking := HBoxContainer.new()
@@ -136,6 +158,125 @@ func _ready() -> void:
  camera.near = 0.05
  _update_player_view()
  _deck_camera()
+ for argument in OS.get_cmdline_user_args():
+  if argument.begins_with("--serve="):
+   session.host(int(argument.get_slice("=",1)))
+   brace_ui.visible = true
+   brace_status.visible = true
+func _build_session_controls(canvas: CanvasLayer,root: Control) -> void:
+ var button := Button.new()
+ coop_toggle = button
+ button.text = "CO-OP"
+ button.position = Vector2(286,56)
+ button.custom_minimum_size = Vector2(130,48)
+ canvas.add_child(button)
+ coop_panel = PanelContainer.new()
+ coop_panel.position = Vector2(16,270)
+ coop_panel.custom_minimum_size = Vector2(550,0)
+ var panel_style := StyleBoxFlat.new()
+ panel_style.bg_color = Color(0.055,0.08,0.10,0.98)
+ for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]: panel_style.set_content_margin(side,4.0)
+ coop_panel.add_theme_stylebox_override("panel",panel_style)
+ coop_panel.visible = false
+ root.add_child(coop_panel)
+ button.pressed.connect(_toggle_coop_panel)
+ var column := VBoxContainer.new()
+ coop_panel.add_child(column)
+ var title := Label.new()
+ title.text = "Shared ship — connect to a running co-op host"
+ column.add_child(title)
+ coop_url = LineEdit.new()
+ coop_url.text = "ws://127.0.0.1:9080"
+ coop_url.placeholder_text = "wss://your-host.example"
+ column.add_child(coop_url)
+ coop_url.focus_entered.connect(func(): print("APEX COOP ENDPOINT FOCUSED"))
+ coop_url.text_submitted.connect(func(_text: String): _session_action("JOIN"))
+ var actions := HBoxContainer.new()
+ column.add_child(actions)
+ for label in ["JOIN","HOST LAN","RELEASE STATION","LEAVE"]:
+  var action := Button.new()
+  action.text = label
+  action.custom_minimum_size.y = 40
+  if label=="HOST LAN": action.disabled = OS.has_feature("web")
+  actions.add_child(action)
+  action.pressed.connect(_session_action.bind(label))
+ coop_status = Label.new()
+ coop_status.text = "Commands reserve a station. Release it to let another sailor take over."
+ coop_status.add_theme_font_size_override("font_size",13)
+ column.add_child(coop_status)
+ session_notice = Label.new()
+ session_notice.position = Vector2(16,320)
+ session_notice.add_theme_font_size_override("font_size",14)
+ session_notice.add_theme_color_override("font_outline_color",Color.BLACK)
+ session_notice.add_theme_constant_override("outline_size",3)
+ root.add_child(session_notice)
+ session.feedback.connect(func(message: String):
+  coop_status.text = message
+  session_notice.text = message
+  notice_timer = 3.0)
+ weather_choice = OptionButton.new()
+ weather_choice.position = Vector2(16,274)
+ for label in ["Evolving","Calm","Breeze","Squall","Storm"]: weather_choice.add_item(label)
+ weather_choice.custom_minimum_size = Vector2(180,38)
+ root.add_child(weather_choice)
+ weather_choice.item_selected.connect(func(index: int):
+  if session.active: session.send_action("weather",float(index))
+  else: $Weather.set_scenario(weather_choice.get_item_text(index)))
+ var sound := Button.new()
+ sound.text = "THUNDER: OFF"
+ sound.position = Vector2(206,274)
+ sound.custom_minimum_size = Vector2(150,38)
+ root.add_child(sound)
+ sound.pressed.connect(func():
+  $Weather.audio_enabled = not $Weather.audio_enabled
+  sound.text = "THUNDER: ON" if $Weather.audio_enabled else "THUNDER: OFF")
+ # Keep the optional connection panel above weather controls.
+ root.move_child(coop_panel,-1)
+ vr_button = Button.new()
+ vr_button.text = "VR UNAVAILABLE"
+ vr_button.position = Vector2(428,56)
+ vr_button.custom_minimum_size = Vector2(146,48)
+ vr_button.add_theme_font_size_override("font_size",13)
+ vr_button.disabled = true
+ canvas.add_child(vr_button)
+ vr = preload("res://scripts/vr_sailing.gd").new()
+ vr.name = "OptionalVR"
+ add_child(vr)
+ vr.availability.connect(func(supported: bool):
+  vr_button.disabled = not supported
+  vr_button.text = "ENTER VR" if supported else "VR UNAVAILABLE")
+ vr.message.connect(func(message: String): coop_status.text = "VR: "+message)
+ vr.setup(self)
+ vr_button.pressed.connect(func():
+  if god_mode: _toggle_fly()
+  if not vr.enter(): coop_status.text = "VR session could not start on this device.")
+
+func _toggle_coop_panel() -> void:
+ if god_mode: _toggle_fly()
+ coop_panel.visible = not coop_panel.visible
+ player.movement_enabled = not coop_panel.visible and not god_mode
+ if coop_panel.visible:
+  # Focus only after the previously hidden containers have completed layout.
+  await get_tree().process_frame
+  await get_tree().process_frame
+  if coop_panel.is_visible_in_tree():
+   coop_url.grab_focus()
+   coop_url.select_all()
+ print("APEX COOP PANEL ",coop_panel.visible)
+
+func _session_action(action: String) -> void:
+ match action:
+  "JOIN":
+   var error: Error = session.join(coop_url.text.strip_edges())
+   if error!=OK: coop_status.text = "Join error: "+error_string(error)
+  "HOST LAN":
+   var error: Error = session.host()
+   if error!=OK: coop_status.text = "Host error: "+error_string(error)
+  "RELEASE STATION": session.send_action("release_station")
+  "LEAVE": session.stop()
+ if session.active:
+  brace_ui.visible = true
+  brace_status.visible = true
 
 func _build_brace_controls(root: Control) -> void:
  brace_ui = GridContainer.new()
@@ -171,12 +312,23 @@ func _build_brace_controls(root: Control) -> void:
  root.add_child(brace_status)
 
 func _brace_pull(direction: float) -> void:
+ if session!=null and session.active:
+  session.send_action("brace_pull",direction,selected_brace)
+  return
  if boat.force_trial: $Boat/Mechanisms.brace.set_hand(selected_brace,direction)
 
 func _brace_stop() -> void:
+ if session!=null and session.active:
+  session.send_action("brace_stop",0.0,0)
+  session.send_action("brace_stop",0.0,1)
+  return
  $Boat/Mechanisms.brace.stop_hands()
 
 func _brace_action(action: String) -> void:
+ if action!="PORT BRACE" and session!=null and session.active:
+  var verb: String = {"BELAY":"brace_belay","FREE":"brace_free","CUT BRACE":"brace_cut"}.get(action,"")
+  if not verb.is_empty(): session.send_action(verb,0.0,selected_brace)
+  return
  var rig: RefCounted = $Boat/Mechanisms.brace
  if not boat.force_trial: return
  match action:
@@ -258,6 +410,7 @@ func _pin_issue() -> void:
  spatial_qa.begin_pin()
 
 func _toggle_fly() -> void:
+ if vr!=null and vr.active: return
  spatial_qa._cancel()
  god_mode = not god_mode
  _brace_stop()
@@ -273,6 +426,8 @@ func _toggle_fly() -> void:
  photo_ui.visible = true
  fly_toggle.visible = true
  pin_button.visible = true
+ if coop_toggle!=null: coop_toggle.visible = true
+ if vr_button!=null: vr_button.visible = true
  spatial_qa.export_button.visible = not spatial_qa.notes.is_empty()
  restore_hud_button.visible = false
  status.visible = true
@@ -296,6 +451,7 @@ func _update_player_view() -> void:
    child.visible = bool(child.get_meta("trainer_visible")) if god_mode else false
 
 func _deck_camera() -> void:
+ if vr!=null and vr.active: return
  camera.global_position = player.global_position+Vector3.UP*0.65
  # Upright horizon for the desktop trainer; tracked XR pose will be a separate adapter.
  camera.global_rotation = Vector3(view_pitch,boat.global_rotation.y+view_yaw,0.0)
@@ -320,6 +476,8 @@ func _toggle_photo() -> void:
  spatial_qa._cancel()
  fly_toggle.visible = not photo_mode
  pin_button.visible = not photo_mode
+ if coop_toggle!=null: coop_toggle.visible = not photo_mode
+ if vr_button!=null: vr_button.visible = not photo_mode
  spatial_qa.export_button.visible = not photo_mode and not spatial_qa.notes.is_empty()
  status.visible = not photo_mode
  normal_ui.visible = not photo_mode and not god_mode
@@ -365,6 +523,12 @@ func _jump() -> void:
  await get_tree().physics_frame
  Input.action_release("ui_accept")
 func command(action: String) -> void:
+ if session!=null and session.active:
+  session.send_action(action)
+  return
+ _apply_command(action)
+func _apply_command(action: String) -> void:
+ if action in ["port","starboard"]: $Boat/Mechanisms.use_button_helm()
  match action:
   "port": rudder = clamp(rudder-0.2,-1.0,1.0)
   "starboard": rudder = clamp(rudder+0.2,-1.0,1.0)
@@ -480,6 +644,18 @@ func _process(delta: float) -> void:
   _observed_speed = boat.global_position.distance_to(_last_boat_position) / delta
  _last_boat_position = boat.global_position
  _deck_camera()
+ weather_choice.disabled = session.active and not session.is_host
+ trial_button.text = "SHARED PHYSICS" if session.active else ("RETURN TO PROTOTYPE" if boat.force_trial else "PHYSICS TRIAL")
+ brace_ui.visible = boat.force_trial
+ brace_status.visible = boat.force_trial
+ notice_timer = maxf(0.0,notice_timer-delta)
+ if notice_timer<=0 and session.active and session.connected:
+  var owner := "unassigned"
+  for station: String in session.stations.keys():
+   if session.stations[station]==multiplayer.get_unique_id(): owner = station.replace("_"," ")
+  var people: int = session.avatars.size()+1 if session.is_host else int(session.latest.get("people",{}).size())
+  session_notice.text = "CO-OP | %d aboard | Your station: %s"%[people,owner]
+ elif notice_timer<=0: session_notice.text = ""
  _update_brace_status()
  var tonnes: float = flooding_system.total_water_tonnes() if flooding_system != null else 0.0
  var helm := $Boat/Mechanisms
@@ -508,6 +684,9 @@ func _update_walk_vector() -> void:
  player.motion_input = axis.normalized()
 
 func _toggle_force_trial() -> void:
+ if session!=null and session.active:
+  coop_status.text = "Shared ship simulation is controlled by the host."
+  return
  _brace_stop()
  boat.set_force_trial(not boat.force_trial)
  trial_button.text = "RETURN TO PROTOTYPE" if boat.force_trial else "PHYSICS TRIAL"

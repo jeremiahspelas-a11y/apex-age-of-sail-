@@ -9,6 +9,8 @@
 
 ## October 28 force-driven trial
 
+The shared environment/co-op pass adds a sixteen-component seeded sea with matching rendered/physical data, relative water flow, procedural weather/FX, an authoritative WebSocket session and an experimental WebXR control adapter. Local numerical, native multiprocess and two-browser checks passed; [full status and completion gates](docs/shared-sailing-simulation.md) explicitly leave physical-device/headset validation, public hosting and complete mechanical fidelity open.
+
 The first loaded lower-foreyard brace circuit is also integrated: two ideal fixed-block leads, belaying pins, bounded hand effort, hauling/easing, free payout and cutting. Triangle pressure supplies the original yard's wind hinge torque. Native and local browser controls passed; [scope and evidence](docs/yard-brace-trial.md) distinguish this rigid-sail model from full cloth/running-rig dynamics.
 
 An opt-in rigid-body trial and the first loaded wheel/line/tiller/rudder mechanism are implemented. The wheel stays by explicit user preference. The first-person trainer now provides deck walking and gaze-relative movement as the test bed for reusable ship mechanics. Hull hydrostatics and steering transmission run independently of APEX's scene; [reuse contracts](docs/reusable-ship-mechanics.md) describe integration and remaining packaging work. See [physics foundation](docs/physics-foundation.md) for input adapters, native/browser evidence and provisional parameters. Do not mark full hydrodynamics, rope/cloth dynamics or VR training complete.
