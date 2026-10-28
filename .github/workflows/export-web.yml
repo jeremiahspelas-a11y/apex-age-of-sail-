@@ -64,23 +64,12 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/spatial_qa_test.gd 2>&1 | tee spatial-qa-test.log
           if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" spatial-qa-test.log; then exit 1; fi
           grep -q "APEX SPATIAL QA TEST PASS" spatial-qa-test.log
-      - name: Verify timber construction graph and frame geometry
+      - name: Verify ship construction, articulation and walk routes
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          s=Path('scripts/ship_structure.gd').read_text()
-          assert 'build_timber_skeleton()' in s, 'Ship construction not called'
-          assert 'func add_curved_frame(' in s, 'Curved ribs missing'
-          assert 'for station in 11:' in s, 'Frame stations missing'
-          assert 'var beam: float = 2.22 * (1.0 - 0.38*taper)' in s, 'Tapered hull stations missing'
-          assert 'member.position = pos' in s, 'Structural members not attached to local hull geometry'
-          assert '# build_hull_strakes(), build_end_closures(), build_keel_bottom() intentionally not invoked.' in s, 'Original hull preservation gate missing'
-          assert 'for band in 8:' in s, 'Expected eight plank bands per side'
-          assert 'mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)' in s, 'Continuous indexed hull surfaces missing'
-          assert 'build_end_closures()' in s, 'Hull end caps not built'
-          assert 'for end_z in [-10.9,10.9]:' in s, 'Expected bow and stern closures missing'
-          print('PASS: timber construction and curved station logic is present')
-          PY
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/ship_construction_test.gd 2>&1 | tee ship-construction-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" ship-construction-test.log; then exit 1; fi
+          grep -q "APEX SHIP CONSTRUCTION TEST PASS" ship-construction-test.log
       - name: Browser graphics smoke test and screenshots
         run: |
           set -euo pipefail

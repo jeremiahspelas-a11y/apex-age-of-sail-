@@ -7,6 +7,12 @@
 - [ ] means absent, incomplete, or unverified. **Never mark complete from a design mockup, GitHub commit alone, or headless export.**
 - Each subsystem needs: dimensions/materials, coupling to neighboring systems, automated tests, rendered screenshots, Android performance tests.
 
+## October 28 construction evidence
+
+The retained ship now has a tested geometry/articulation refit: station-fitted upperworks and decks, aligned collision, traversable quarterdeck/forecastle stairs, hinged original fittings, eight curved cloth/yard assemblies, mast steps, standing rigging and distinct shared materials. See [measured changes, renders and limits](docs/ship-refit.md). Native construction and Spatial QA tests passed locally; PR checks report the exact current build status. Physical Android verification remains pending.
+
+This is partial implementation of the items below, not completion of historical authentication, globally manifold assembled topology, dynamic cloth/ropes, fracture, hydrostatics or whole-ship access. In particular, the closed geometric reference envelope is not the prototype's current displacement/mass model.
+
 ## A. Audit of existing prototype (as of Oct 27, 2026)
 - [x] Imported pinnace visual model exists; 288 mesh objects restored by CI. Not verified as historically correct or manifold.
 - [x] Procedural hull, deck, mast collision primitives exist. **These are not plank-by-plank geometry or leak-tight boundaries.**

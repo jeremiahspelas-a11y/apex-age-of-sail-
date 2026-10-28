@@ -1,6 +1,15 @@
 # APEX Active QA and Implementation Ledger
 
-Updated: 2026-10-27. This is the source of truth for what was *actually* verified.
+Updated: 2026-10-28. This is the source of truth for what was *actually* verified.
+
+## Actual ship construction refit — 2026-10-28
+- User correction: work on the ship itself. This pass refits the retained original pinnace's hull/decks, fittings, sails, rigging and walking surfaces; earlier inspection-tool work remains separate in the history.
+- Measured the original GLB directly: V6 hull has **zero boundary/nonmanifold edges** already; the old fairing-study hull has 176 boundary edges. The visible bow/stern problem was not proof that V6 itself was open. Multiple rectangular deck generations overlap and overhang the tapered V6 ends; fixed-width frames and rigging also miss their intended supports.
+- Refits the existing V6 station geometry to a deck rim, fits the original solid deck nodes to those lines, encloses raised-deck sides, completes both companion stairs, and fits rails/frames/lower-deck planks. Original source GLB checksum and all original nodes are retained; superseded visible duplicates are hidden conditionally.
+- Real socket pivots now carry the original helm assembly, rudder/tiller, eight sail/yard pairs, doors and hatches. Curved cloth, named materials, shared grain/planking/canvas shaders, mast steps/partners, shrouds/ratlines/chainplates and stays are implemented. This is not a new rope/cloth/hydrostatics solver.
+- **Local native tests pass:** hull reference envelope (379.69 m³, two incident triangles per welded edge), unchanged V6 beam/length/draft bounds, sail/yard attachment under trim, ten-part helm pivot, hinges, eight canvas materials, deck raycasts, open-hatch clearance and real CharacterBody traversal to both raised decks. Spatial QA regressions also pass.
+- Neutral-light Chromium ship views were rendered and inspected; before/after evidence shows removed deck flicker/overhangs, tapered closed upperworks, curved sails and anchored standing rigging. See [ship refit evidence](docs/ship-refit.md). CI evidence belongs to the latest PR head; physical Android acceptance is pending.
+- Preserved construction-first scope: the 34 m³ prototype physics model, full running-rigging mechanics, surveyed historical plan, hold clearances, damage graph, ocean/sky and mobile performance remain unfinished. Do not mark those complete from this refit.
 
 ## God Mode and Spatial QA stabilization — 2026-10-28
 - Resumed from `7cd96530`, whose GitHub Actions run `40728831700` completed successfully. Scope: stabilize existing fly → point → describe → save → continue flow; preserve original ship asset and design.
