@@ -2,6 +2,12 @@
 
 Updated: 2026-10-28. This is the source of truth for what was *actually* verified.
 
+## Loaded foreyard brace circuit — 2026-10-28
+- Bound the existing lower foreyard/sail to two tension-only braces led aft through mast-supported fixed blocks to deck-supported belaying pins. In force mode, wind pressure and line torque advance the yard; prototype yard trim does not impose its angle.
+- Added scene-independent yard/line-tail and triangle-pressure modules. Hauling/easing uses bounded effort, overload slips through the hand, belaying fixes available length, free tails run, and cut/exhausted lines transmit no force. Routed reactions balance across yard, block and pin. Rendering shows endpoints and slack without claiming segment rope dynamics.
+- Native brace suite passed analytical pressure/backwind/dissipation, energy, balanced reactions, effort/slip, hauling/easing, belaying/free/cut, time-step convergence and actual scene control. The original yard turned ~14.75° in the coupled test. All four earlier native suites passed; Web release export passed. Local Chromium operated the real brace buttons and recorded ~6.87° at belaying with no page/console errors; screenshot reviewed. CI now repeats this flow with a bounded browser-step duration.
+- [Model, parameters and evidence](docs/yard-brace-trial.md): rigid curved sail, ideal belaying, single-part lead and provisional coefficients. Clew sheets, dynamic cloth, pulley friction/purchase, recoil and physical-device/VR validation remain open. Source GLB checksum is unchanged.
+
 ## First-person trainer and reusable mechanics — 2026-10-28
 - User clarified the near-term product: a first-person sailing trainer that develops reusable mechanics for a future shareable working ship, while preserving APEX's broader goal.
 - Default camera is now at the deck player's eye; walking follows horizontal gaze. Right-drag/touch look, existing sailing buttons/keys and fly inspection remain available. Inspection suspends walking but keeps the player carried with the ship; returning restores the eye camera. Player visuals are hidden in deck view. This is desktop/touch first person, not VR support.

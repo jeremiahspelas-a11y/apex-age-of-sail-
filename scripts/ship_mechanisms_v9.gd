@@ -3,7 +3,13 @@ signal steering_connection_changed(connected: bool)
 ## Articulate the imported parts at measured sockets; no duplicate solid proxy fittings.
 const Refit = preload("res://scripts/ship_refit.gd")
 const SteeringTransmission = preload("res://scripts/steering_transmission.gd")
+const YardBrace = preload("res://scripts/yard_brace.gd")
 var helm := SteeringTransmission.new()
+var brace := YardBrace.new()
+var loaded_yard: Node3D
+var loaded_sail: MeshInstance3D
+var brace_lines: Array[MeshInstance3D] = []
+var brace_reactions: Array[Dictionary] = []
 const SailCloth = preload("res://scripts/sail_cloth.gd")
 @export var use_whipstaff := false # wheel preferred for the historically inspired trainer
 @onready var vessel: RigidBody3D = get_parent() as RigidBody3D
@@ -55,6 +61,7 @@ func _ready() -> void:
  _bind_period_steering(imported)
  _bind_steering_route()
  _bind_rig(imported)
+ _bind_braces()
  _bind_openings(imported)
  print("APEX original rig controls: rudder=",original_rudder != null," wheel=",original_wheel != null)
  print("APEX original sail-yard pairs found: ",rig_yards.size())
@@ -189,8 +196,10 @@ func _process(delta: float) -> void:
  if _line_clock >= 0.1:
   _line_clock = 0.0
   _update_steering_route()
+  _update_braces()
  var trim := clampf(float(vessel.get("sheet_angle")),-1.5,1.5)
  for yard in yards:
+  if vessel.force_trial and yard==loaded_yard: continue
   yard.rotation.y = lerp_angle(yard.rotation.y,trim*0.55,minf(1.0,delta*1.6))
  for door in doors:
   door.rotation.y = lerp_angle(door.rotation.y,deg_to_rad(85.0) if door_open else 0.0,minf(1.0,delta*3.0))
@@ -199,6 +208,117 @@ func _process(delta: float) -> void:
 
 func toggle_doors() -> void: door_open = not door_open
 func toggle_hatches() -> void: hatch_open = not hatch_open
+
+func _bind_braces() -> void:
+ loaded_yard = get_node_or_null("YardRig_1_3")
+ if loaded_yard == null: return
+ for sail in rig_sails:
+  if sail.get_parent()==loaded_yard:
+   loaded_sail = sail
+   sail.set_meta("loaded_brace",true)
+ var span := 2.75
+ if loaded_sail != null:
+  var bounds: AABB = loaded_sail.get_meta("original_sail_bounds")
+  span = bounds.size.x*0.5
+ var leads: Array[Vector3] = []
+ var belays: Array[Vector3] = []
+ var hemp := StandardMaterial3D.new()
+ hemp.albedo_color = Color(0.24,0.19,0.11)
+ hemp.roughness = 0.96
+ var wood := StandardMaterial3D.new()
+ wood.albedo_color = Color(0.27,0.14,0.06)
+ wood.roughness = 0.85
+ for side in [-1.0,1.0]:
+  # Single fixed turning blocks lead aft; pins stand on the main deck.
+  var lead := Vector3(side*0.35,5.8,3.1)
+  var pin := Vector3(side*2.4,Refit.MAIN_TOP+0.55,3.3)
+  leads.append(lead-loaded_yard.position)
+  belays.append(pin-loaded_yard.position)
+  var line := MeshInstance3D.new()
+  line.name = "ForeBraceRopePort" if side<0 else "ForeBraceRopeStarboard"
+  line.material_override = hemp
+  add_child(line)
+  brace_lines.append(line)
+  var block := MeshInstance3D.new()
+  block.name = "ForeBraceTurningBlock"
+  var shell := BoxMesh.new()
+  shell.size = Vector3(0.18,0.28,0.22)
+  block.mesh = shell
+  block.material_override = wood
+  block.position = lead
+  add_child(block)
+  # Strops attach the fixed blocks to the mainmast.
+  var strop := MeshInstance3D.new()
+  strop.name = "ForeBraceBlockRopeStrop"
+  var surface := SurfaceTool.new()
+  surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+  Refit._tube(surface,lead,Vector3(side*0.20,6.1,3.1),0.028)
+  surface.generate_normals()
+  strop.mesh = surface.commit()
+  strop.material_override = hemp
+  add_child(strop)
+  var pin_mesh := MeshInstance3D.new()
+  pin_mesh.name = "ForeBraceBelayingPin"
+  var cylinder := CylinderMesh.new()
+  cylinder.height = 0.45
+  cylinder.top_radius = 0.04
+  cylinder.bottom_radius = 0.04
+  pin_mesh.mesh = cylinder
+  pin_mesh.material_override = wood
+  pin_mesh.position = pin
+  add_child(pin_mesh)
+  var rack := MeshInstance3D.new()
+  rack.name = "ForeBracePinRack"
+  var beam := BoxMesh.new()
+  beam.size = Vector3(0.22,0.8,0.24)
+  rack.mesh = beam
+  rack.material_override = wood
+  rack.position = Vector3(pin.x,Refit.MAIN_TOP+0.4,pin.z)
+  add_child(rack)
+ brace.configure(span,leads,belays)
+ _update_braces()
+
+func reset_braces() -> void:
+ if loaded_yard == null: return
+ var leads: Array[Vector3] = []
+ var belays: Array[Vector3] = []
+ for line: Dictionary in brace.lines:
+  leads.append(line.lead)
+  belays.append(line.belay)
+ brace.configure(brace.half_span,leads,belays,loaded_yard.rotation.y)
+
+func step_loaded_braces(delta: float,wind_torque: float) -> float:
+ if loaded_yard == null: return 0.0
+ var report := brace.step(delta,wind_torque)
+ brace_reactions = report.reactions
+ loaded_yard.rotation.y = brace.angle
+ return report.angular_acceleration
+
+func brace_report() -> Dictionary:
+ if brace.lines.size()!=2: return {}
+ return {"angle_deg":rad_to_deg(brace.angle),"velocity_rad_s":brace.angular_velocity,"port_length_m":brace.lines[0].length,"starboard_length_m":brace.lines[1].length,"port_tension_n":brace.lines[0].tension,"starboard_tension_n":brace.lines[1].tension,"port_mode":brace.lines[0].mode,"starboard_mode":brace.lines[1].mode}
+
+func _update_braces() -> void:
+ if loaded_yard == null: return
+ for i in brace_lines.size():
+  var line: Dictionary = brace.lines[i]
+  var visual := brace_lines[i]
+  visual.visible = line.mode!=YardBrace.Hold.CUT
+  var end := loaded_yard.position+Basis(Vector3.UP,loaded_yard.rotation.y)*Vector3(-brace.half_span if i==0 else brace.half_span,0,0)
+  var lead: Vector3 = loaded_yard.position+line.lead
+  var pin: Vector3 = loaded_yard.position+line.belay
+  var sag := 0.0
+  if vessel.force_trial and line.tension<0.1:
+   sag = minf(1.5,sqrt(maxf(0.0,line.length-line.tail-end.distance_to(lead)))*0.6)
+  var st := SurfaceTool.new()
+  st.begin(Mesh.PRIMITIVE_TRIANGLES)
+  for k in 8:
+   var t0 := float(k)/8.0
+   var t1 := float(k+1)/8.0
+   Refit._tube(st,end.lerp(lead,t0)-Vector3.UP*sag*sin(t0*PI),end.lerp(lead,t1)-Vector3.UP*sag*sin(t1*PI),0.018)
+  Refit._tube(st,lead,pin,0.018)
+  st.generate_normals()
+  visual.mesh = st.commit()
 
 func _bind_period_steering(root: Node) -> void:
  # Keep the preferred wheel; the optional whipstaff is a separate visual adapter.

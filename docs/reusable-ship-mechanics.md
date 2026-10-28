@@ -8,6 +8,8 @@ The first-person trainer is the integration scene for mechanics that can later b
 |---|---|---|---|
 | `hull_hydrostatics.gd` | Hull sections/bounds, rigid pose, water heights, COM and velocities | Displaced volume, buoyancy and water resistance with moments | Godot math/RefCounted |
 | `steering_transmission.gd` | Geometry/configuration, fixed time step, helm effort or crew target, water hinge torque | Wheel/rudder angles and velocities, line tensions, angular accelerations | Godot math/RefCounted |
+| `yard_brace.gd` | Yard span, block/pin locations, fixed time step, wind hinge torque, hand/belay commands | Yard and tail state, tensions and balanced attachment reactions | Godot math/RefCounted |
+| `sail_pressure_surface.gd` | Triangle geometry, wind and rigid/relative hinge motion | Panel pressure resultant and moments about COM and hinge | Godot math/RefCounted |
 | `rig_pressure_load.gd` | Bound sail meshes, wind, body state, effective sail area | Per-sail pressure loads and resultant force/moment | Current sail scene adapter |
 | `sailing_physics.gd` | Ocean, wind, mass, compartments and mechanism adapter | Forces applied to Godot's rigid body | APEX vessel integration |
 | `ship_mechanisms_v9.gd` | Imported sockets/meshes, steering state and trim | Visible machinery, openings and rig articulation | Current pinnace geometry |
@@ -64,7 +66,7 @@ Default geometry has a 1.70 m tiller and two ideal blocks at ±1.10 m abeam of i
 ## Full-ship resource milestones
 
 1. Current foundation: first-person deck walking, independent hull and steering solvers, pressure forces and measured geometry.
-2. One complete loaded running-rig circuit: sail/yard → sheet or brace → block → belaying point, with hauling, easing, belaying and release.
+2. First loaded brace circuit implemented: [lower foreyard → two braces → blocks → belaying pins](yard-brace-trial.md), with hauling, easing, belaying, free payout and cutting. Next, add sail-clew sheet constraints and dynamic shape/load response; this rigid-yard example does not complete the running rig.
 3. Generalize vessel configuration and sail/rig adapters; provide a minimal sample scene independent of APEX's world and UI, with documented sockets and mass budget.
 4. Calibrate handling against reference data, add lessons and measurable maneuvers, and validate target hardware. Add tracked VR grip/input as an adapter to the same mechanics.
 5. Package a versioned ship resource with example integration, dependency/license inventory and stable interfaces. The repository currently contains the foundation, not that finished release.

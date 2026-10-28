@@ -4,7 +4,7 @@ Godot 4.7.2 sailing project. The current focus is a **first-person sailing train
 
 Start on deck, walk with the arrow keys or on-screen arrows, and look with right-mouse drag or a drag on the right side of the touchscreen. A/D operate the helm, W/S change effective sail area, and Q/E trim the yards. F switches between the deck and fly inspection; P hides/restores the HUD. Buttons provide the same sailing commands on touchscreens.
 
-**PHYSICS TRIAL** enables displaced-volume buoyancy, individual sail pressure loads, and the loaded wheel → drum → two steering lines → tiller → rudder transmission. The earlier controlled prototype remains available. Web builds also accept `?simulation=forces`. This is a foundation, with provisional parameters: full running rigging, cloth mechanics, calibrated lessons and VR interactions remain unfinished.
+**PHYSICS TRIAL** enables displaced-volume buoyancy, individual sail pressure loads, and the loaded wheel → drum → two steering lines → tiller → rudder transmission. The lower foreyard also has two pressure-loaded braces: select a line, haul/ease, belay, let it run free or cut it. [Brace controls and model](docs/yard-brace-trial.md) explain operation. The earlier controlled prototype remains available. Web builds also accept `?simulation=forces`. Full running rigging, cloth mechanics, calibrated lessons and VR interactions remain unfinished.
 
 ## Run locally
 

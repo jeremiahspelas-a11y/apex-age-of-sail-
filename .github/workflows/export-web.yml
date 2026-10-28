@@ -82,7 +82,14 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/trainer_test.gd 2>&1 | tee trainer-test.log
           if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" trainer-test.log; then exit 1; fi
           grep -q "APEX TRAINER TEST PASS" trainer-test.log
+      - name: Verify loaded foreyard braces and panel pressure
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/yard_brace_test.gd 2>&1 | tee yard-brace-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" yard-brace-test.log; then exit 1; fi
+          grep -q "APEX YARD BRACE TEST PASS" yard-brace-test.log
       - name: Browser graphics smoke test and screenshots
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           npm install --no-save playwright@1.58.2
@@ -102,8 +109,10 @@ jobs:
             const page = await context.newPage();
             const errors = [];
             const forceSamples = [];
+            const braceControls = [];
             page.on('console', m => {
               if (m.text().startsWith('APEX FORCE SAMPLE ')) forceSamples.push(JSON.parse(m.text().slice('APEX FORCE SAMPLE '.length)));
+              if (m.text().startsWith('APEX BRACE CONTROL ')) braceControls.push(JSON.parse(m.text().slice('APEX BRACE CONTROL '.length)));
             });
             page.on('pageerror', e => errors.push('PAGE: ' + e.message));
             page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
@@ -158,6 +167,22 @@ jobs:
               throw new Error('Force trial did not produce a finite, buoyant physics sample');
             }
             require('fs').writeFileSync('visual-qa/force-trial.json', JSON.stringify(forceSamples,null,2));
+            // Free the opposing brace, haul the port line, and belay through the real UI.
+            const startAngle = forceSamples[0].brace.angle_deg;
+            await page.mouse.click(660,267); // select starboard
+            await page.mouse.click(900,267); // free starboard
+            await page.mouse.click(660,267); // select port
+            await page.mouse.move(660,307);
+            await page.mouse.down();
+            await page.waitForTimeout(3000);
+            await page.mouse.up();
+            await page.mouse.click(780,267); // belay port
+            await page.waitForTimeout(400);
+            const belayed = braceControls.findLast(c => c.action === 'BELAY');
+            if (!belayed || belayed.state.port_mode !== 0 || Math.abs(belayed.state.angle_deg-startAngle) < 0.5) {
+              throw new Error('Browser brace controls did not haul and belay the loaded yard');
+            }
+            require('fs').writeFileSync('visual-qa/brace-controls.json', JSON.stringify(braceControls,null,2));
             await page.screenshot({ path: 'visual-qa/force-trial.png' });
             const canvas = await page.locator('canvas').count();
             require('fs').writeFileSync('visual-qa/report.json', JSON.stringify({ canvas, errors }, null, 2));

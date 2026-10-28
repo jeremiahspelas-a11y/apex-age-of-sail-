@@ -40,6 +40,10 @@ var flooding_system: Node
 var selected_compartment := 1
 var trial_button: Button
 var spatial_qa: Node
+var brace_ui: GridContainer
+var brace_status: Label
+var brace_select: Button
+var selected_brace := 0
 func _ready() -> void:
  var canvas := CanvasLayer.new()
  add_child(canvas)
@@ -104,6 +108,7 @@ func _ready() -> void:
  trial_button.offset_bottom = 238.0
  root.add_child(trial_button)
  trial_button.pressed.connect(_toggle_force_trial)
+ _build_brace_controls(root)
  if OS.has_feature("web") and JavaScriptBridge.eval("new URLSearchParams(location.search).get('simulation') === 'forces'"):
   _toggle_force_trial()
  var walking := HBoxContainer.new()
@@ -131,6 +136,66 @@ func _ready() -> void:
  camera.near = 0.05
  _update_player_view()
  _deck_camera()
+
+func _build_brace_controls(root: Control) -> void:
+ brace_ui = GridContainer.new()
+ brace_ui.columns = 3
+ brace_ui.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+ brace_ui.offset_left = -356.0
+ brace_ui.offset_right = -8.0
+ brace_ui.offset_top = 248.0
+ brace_ui.visible = boat.force_trial
+ root.add_child(brace_ui)
+ for label in ["PORT BRACE","BELAY","FREE","HAUL","EASE","CUT BRACE"]:
+  var button := Button.new()
+  button.text = label
+  button.custom_minimum_size = Vector2(112,38)
+  button.add_theme_font_size_override("font_size",13)
+  brace_ui.add_child(button)
+  if label=="PORT BRACE": brace_select = button
+  if label=="HAUL" or label=="EASE":
+   button.button_down.connect(_brace_pull.bind(-1.0 if label=="HAUL" else 1.0))
+   button.button_up.connect(_brace_stop)
+  else:
+   button.pressed.connect(_brace_action.bind(label))
+ brace_status = Label.new()
+ brace_status.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+ brace_status.offset_left = -356.0
+ brace_status.offset_right = -8.0
+ brace_status.offset_top = 334.0
+ brace_status.add_theme_font_size_override("font_size",14)
+ brace_status.add_theme_color_override("font_outline_color",Color.BLACK)
+ brace_status.add_theme_constant_override("outline_size",3)
+ brace_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ brace_status.visible = boat.force_trial
+ root.add_child(brace_status)
+
+func _brace_pull(direction: float) -> void:
+ if boat.force_trial: $Boat/Mechanisms.brace.set_hand(selected_brace,direction)
+
+func _brace_stop() -> void:
+ $Boat/Mechanisms.brace.stop_hands()
+
+func _brace_action(action: String) -> void:
+ var rig: RefCounted = $Boat/Mechanisms.brace
+ if not boat.force_trial: return
+ match action:
+  "PORT BRACE":
+   _brace_stop()
+   selected_brace = 1-selected_brace
+   brace_select.text = "PORT BRACE" if selected_brace==0 else "STBD BRACE"
+  "BELAY": rig.belay(selected_brace)
+  "FREE": rig.release(selected_brace)
+  "CUT BRACE": rig.cut(selected_brace)
+ print("APEX BRACE CONTROL ",JSON.stringify({"action":action,"selected":selected_brace,"state":$Boat/Mechanisms.brace_report()}))
+
+func _update_brace_status() -> void:
+ var rig: RefCounted = $Boat/Mechanisms.brace
+ if not boat.force_trial or rig.lines.size()!=2: return
+ var line: Dictionary = rig.lines[selected_brace]
+ var mode: String = ["BELAYED","IN HAND","RUNNING FREE","CUT"][int(line.mode)]
+ brace_status.text = "FORE LOWER YARD %.1f deg | %.0f / %.0f N\n%s | %.2f m available\nHaul one side; ease its opposing brace."%[rad_to_deg(rig.angle),rig.lines[0].tension,rig.lines[1].tension,mode,line.length]
+
 func _build_fly_controls(canvas: CanvasLayer) -> void:
  var toggle := Button.new()
  fly_toggle = toggle
@@ -195,6 +260,7 @@ func _pin_issue() -> void:
 func _toggle_fly() -> void:
  spatial_qa._cancel()
  god_mode = not god_mode
+ _brace_stop()
  dragging = false
  deck_look_touch = -1
  _update_player_view()
@@ -248,6 +314,7 @@ func _reset_fly_input() -> void:
   stick_canvas.queue_redraw()
 
 func _toggle_photo() -> void:
+ _brace_stop()
  photo_mode = not photo_mode
  _reset_fly_input()
  spatial_qa._cancel()
@@ -334,6 +401,7 @@ func _input(event: InputEvent) -> void:
 
 func _notification(what: int) -> void:
  if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+  if is_node_ready(): _brace_stop()
   _reset_fly_input()
   dragging = false
   deck_look_touch = -1
@@ -412,6 +480,7 @@ func _process(delta: float) -> void:
   _observed_speed = boat.global_position.distance_to(_last_boat_position) / delta
  _last_boat_position = boat.global_position
  _deck_camera()
+ _update_brace_status()
  var tonnes: float = flooding_system.total_water_tonnes() if flooding_system != null else 0.0
  var helm := $Boat/Mechanisms
  var displayed_speed := Vector2(boat.linear_velocity.x,boat.linear_velocity.z).length() if boat.force_trial else _observed_speed
@@ -439,5 +508,8 @@ func _update_walk_vector() -> void:
  player.motion_input = axis.normalized()
 
 func _toggle_force_trial() -> void:
+ _brace_stop()
  boat.set_force_trial(not boat.force_trial)
  trial_button.text = "RETURN TO PROTOTYPE" if boat.force_trial else "PHYSICS TRIAL"
+ brace_ui.visible = boat.force_trial
+ brace_status.visible = boat.force_trial

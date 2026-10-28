@@ -176,6 +176,7 @@ func set_force_trial(enabled: bool) -> void:
  axis_lock_angular_x = not enabled
  axis_lock_angular_z = not enabled
  if enabled:
+  get_node("Mechanisms").reset_braces()
   linear_damp = 0.0
   angular_damp = 0.0
   _last_trial_mass = -1.0
@@ -230,6 +231,10 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
  # A local-flow pressure approximation acts on the actual rudder angle, never raw helm input.
  var mechanism := get_node_or_null("Mechanisms")
  if mechanism != null:
+  var yard_acceleration: float = mechanism.step_loaded_braces(state.step,rig_report.brace_torque)
+  # Wind torque above is counted once. Internal brace forces cancel; subtract
+  # the relative yard's angular-momentum change from the assembled hull.
+  state.apply_torque(-state.transform.basis.y*mechanism.brace.inertia*yard_acceleration)
   effective_rudder_angle = mechanism.actual_rudder_angle
   var point := state.transform*Vector3(0,-1.0,13.45)
   var flow := state.linear_velocity+state.angular_velocity.cross(point-state.transform*center_of_mass)
@@ -243,7 +248,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
   print("APEX FORCE SAMPLE ",JSON.stringify(force_trial_report()))
 
 func force_trial_report() -> Dictionary:
- return {"mass_kg":mass,"submerged_m3":hydro_report.get("volume",0.0),"buoyancy_n":hydro_report.get("buoyancy",Vector3.ZERO).y,"position":[global_position.x,global_position.y,global_position.z],"speed_mps":linear_velocity.length(),"finite":global_position.is_finite() and linear_velocity.is_finite()}
+ return {"mass_kg":mass,"submerged_m3":hydro_report.get("volume",0.0),"buoyancy_n":hydro_report.get("buoyancy",Vector3.ZERO).y,"position":[global_position.x,global_position.y,global_position.z],"speed_mps":linear_velocity.length(),"brace":get_node("Mechanisms").brace_report(),"finite":global_position.is_finite() and linear_velocity.is_finite()}
 
 func rudder_water_force(local_velocity: Vector3,angle: float) -> Vector3:
  var planar := Vector3(local_velocity.x,0,local_velocity.z)
