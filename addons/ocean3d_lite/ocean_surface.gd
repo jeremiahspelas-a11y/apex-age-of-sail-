@@ -5,6 +5,8 @@ var wetness := 0.0
 var wind_direction := Vector2(1.0,0.0)
 var clock := 0.0
 var horizon_patches: Array[MeshInstance3D] = []
+func get_height(x: float,z: float) -> float:
+ return Ocean.get_height(x,z)
 func wave_height(x: float,z: float,_t: float) -> float:
  return Ocean.get_height(x,z)
 func _ready() -> void:

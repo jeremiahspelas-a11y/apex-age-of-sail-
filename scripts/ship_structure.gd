@@ -28,7 +28,7 @@ func _build_walk_surfaces() -> void:
  if coarse != null: coarse.set_deferred("disabled",true)
  _deck_collision("MainDeck",-13.0,13.2,Refit.MAIN_BOTTOM,Refit.MAIN_TOP,2.95,Refit.HATCHES)
  _deck_collision("Forecastle",-12.9,-8.45,1.84,Refit.FORE_TOP,2.05,[Refit.FORE_STAIR])
- _deck_collision("Quarterdeck",6.7,11.8,2.14,Refit.QUARTER_TOP,2.65,[Refit.QUARTER_STAIR])
+ _deck_collision("Quarterdeck",6.7,11.8,2.14,Refit.QUARTER_TOP,2.65,Refit.quarter_openings(boat))
  _deck_collision("LowerDeck",-11.15,9.70,-1.20,-1.07,2.325,[])
  _stair_ramp("QuarterdeckStairs",Vector3(0,Refit.MAIN_TOP,6.2),Vector3(0,Refit.QUARTER_TOP,9.7),1.4)
  _stair_ramp("ForecastleStairs",Vector3(0,Refit.MAIN_TOP,-7.44),Vector3(0,Refit.FORE_TOP,-9.14),1.3)

@@ -70,6 +70,12 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/ship_construction_test.gd 2>&1 | tee ship-construction-test.log
           if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" ship-construction-test.log; then exit 1; fi
           grep -q "APEX SHIP CONSTRUCTION TEST PASS" ship-construction-test.log
+      - name: Verify force-driven hull and loaded steering transmission
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/force_trial_test.gd 2>&1 | tee force-trial-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" force-trial-test.log; then exit 1; fi
+          grep -q "APEX FORCE TRIAL TEST PASS" force-trial-test.log
       - name: Browser graphics smoke test and screenshots
         run: |
           set -euo pipefail
@@ -89,6 +95,10 @@ jobs:
             const context = await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 960, height: 540 }, deviceScaleFactor: 1 });
             const page = await context.newPage();
             const errors = [];
+            const forceSamples = [];
+            page.on('console', m => {
+              if (m.text().startsWith('APEX FORCE SAMPLE ')) forceSamples.push(JSON.parse(m.text().slice('APEX FORCE SAMPLE '.length)));
+            });
             page.on('pageerror', e => errors.push('PAGE: ' + e.message));
             page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
             await page.goto('http://127.0.0.1:8765/index.html', { waitUntil: 'domcontentloaded', timeout: 45000 });
@@ -135,6 +145,14 @@ jobs:
             require('fs').writeFileSync('visual-qa/touch-test.json', JSON.stringify(multitouch,null,2));
             if (!multitouch.ok) throw new Error('Dual touch simulation could not run');
 
+            await page.goto('http://127.0.0.1:8765/index.html?simulation=forces', { waitUntil: 'domcontentloaded', timeout: 45000 });
+            await page.waitForFunction(() => !!document.querySelector('canvas'));
+            for (let i=0; i<30 && !forceSamples.length; i++) await page.waitForTimeout(2000);
+            if (!forceSamples.length || !forceSamples[0].finite || forceSamples[0].submerged_m3 <= 0 || forceSamples[0].mass_kg < 80000) {
+              throw new Error('Force trial did not produce a finite, buoyant physics sample');
+            }
+            require('fs').writeFileSync('visual-qa/force-trial.json', JSON.stringify(forceSamples,null,2));
+            await page.screenshot({ path: 'visual-qa/force-trial.png' });
             const canvas = await page.locator('canvas').count();
             require('fs').writeFileSync('visual-qa/report.json', JSON.stringify({ canvas, errors }, null, 2));
             await browser.close();

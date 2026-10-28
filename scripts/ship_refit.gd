@@ -11,6 +11,7 @@ const QUARTER_TOP := 2.36
 const FORE_TOP := 2.06
 const HATCHES := [Rect2(-0.575,-4.6,1.15,1.2),Rect2(-0.575,1.4,1.15,1.2)]
 const FORE_STAIR := Rect2(-0.70,-9.70,1.40,1.25)
+const WHIPSTAFF_SLOT := Rect2(-0.30,11.25,0.60,0.40)
 const QUARTER_STAIR := Rect2(-0.80,6.7,1.6,3.0)
 
 static func beam_at(z: float) -> float:
@@ -64,7 +65,7 @@ static func apply(boat: Node3D) -> void:
  hull.set_meta("source_station_count",STATIONS.size())
  main.mesh = deck_mesh(-13.0,13.2,MAIN_BOTTOM,MAIN_TOP,2.95,HATCHES)
  fore.mesh = deck_mesh(-12.9,-8.45,1.84,FORE_TOP,2.05,[FORE_STAIR])
- quarter.mesh = deck_mesh(6.7,11.8,2.14,QUARTER_TOP,2.65,[QUARTER_STAIR])
+ quarter.mesh = deck_mesh(6.7,11.8,2.14,QUARTER_TOP,2.65,quarter_openings(boat))
  _castle_walls(root,-12.9,-8.45,1.84,2.05,"Forecastle")
  _castle_walls(root,6.7,11.8,2.14,2.65,"Quarterdeck")
  _fit_rails(root)
@@ -405,3 +406,13 @@ static func _fit_original_frames_and_lower_deck(root: Node) -> void:
     points[i].y = minf(points[i].y+0.05,MAIN_BOTTOM-0.10)
    for i in range(points.size()-1): _tube(st,points[i],points[i+1],0.07)
    part.mesh = _finish(st)
+
+static func quarter_openings(boat: Node) -> Array:
+ var openings: Array = [QUARTER_STAIR]
+ var mechanisms := boat.get_node_or_null("Mechanisms")
+ if mechanisms != null and mechanisms.use_whipstaff:
+  openings.append(WHIPSTAFF_SLOT)
+ else:
+  openings.append(Rect2(-0.37,11.59,0.08,0.08))
+  openings.append(Rect2(0.29,11.59,0.08,0.08))
+ return openings

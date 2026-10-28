@@ -2,6 +2,13 @@
 
 Updated: 2026-10-28. This is the source of truth for what was *actually* verified.
 
+## Force-driven training foundation — 2026-10-28
+- User authorized beginning coupled mechanics, then clarified the goal: a functioning, historically inspired ship suitable for future VR education; **keep the steering wheel**. Exact 1670–1690 reconstruction does not override that preference. Wheel is default; provisional whipstaff remains an optional configuration.
+- Added an opt-in PHYSICS TRIAL with displaced-volume buoyancy, restoring moments, empirical dissipative water resistance, eight individual sail-pressure loads and real unlocked rigid-body motion. The earlier prototype remains selectable. Ocean surface now exposes the shared `get_height` API requested by the ship.
+- First loaded mechanism: crew-limited wheel torque → drum payout → two tension-only elastic steering lines → tiller/rudder. Water load can backdrive a released wheel; cut lines transmit no force. Added visible drum, line routes and blocks plus a direct torque adapter for later VR input.
+- Local native tests verify analytical buoyancy/force center, grid convergence/equilibrium/cargo draft, restoring heel moment, damping energy, actual engine impulse/recovery, sail loads, line energy decay/backdriving/disconnection and control limits. Construction and Spatial QA regressions also pass. Local Chromium entered force mode and reported finite motion, 80,000 kg mass, ~78.22 m³ immersion and ~785.8 kN buoyancy, with no browser errors.
+- Mass/CG/inertia, crew effort, line elasticity and hydrodynamic coefficients are provisional. This is not full rope/cloth dynamics, calibrated sailing instruction, VR support, or physical-device performance acceptance. See [physics foundation and limits](docs/physics-foundation.md).
+
 ## Actual ship construction refit — 2026-10-28
 - User correction: work on the ship itself. This pass refits the retained original pinnace's hull/decks, fittings, sails, rigging and walking surfaces; earlier inspection-tool work remains separate in the history.
 - Measured the original GLB directly: V6 hull has **zero boundary/nonmanifold edges** already; the old fairing-study hull has 176 boundary edges. The visible bow/stern problem was not proof that V6 itself was open. Multiple rectangular deck generations overlap and overhang the tapered V6 ends; fixed-width frames and rigging also miss their intended supports.

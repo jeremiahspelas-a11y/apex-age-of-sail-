@@ -34,6 +34,7 @@ var _last_boat_position := Vector3.ZERO
 var _observed_speed := 0.0
 var flooding_system: Node
 var selected_compartment := 1
+var trial_button: Button
 var spatial_qa: Node
 func _ready() -> void:
  var canvas := CanvasLayer.new()
@@ -76,12 +77,23 @@ func _ready() -> void:
  damage_actions.offset_right = -8.0
  damage_actions.offset_top = 132.0
  root.add_child(damage_actions)
- for action in [["BREACH","breach"],["PATCH","patch"],["PUMP","pump"],["ROPE CUT","rope_cut"]]:
+ for action in [["BREACH","breach"],["PATCH","patch"],["PUMP","pump"],["LINK CUT","rope_cut"]]:
   var damage_button := Button.new()
   damage_button.text = action[0]
   damage_button.custom_minimum_size = Vector2(84,48)
   damage_actions.add_child(damage_button)
   damage_button.pressed.connect(command.bind(action[1]))
+ trial_button = Button.new()
+ trial_button.text = "PHYSICS TRIAL"
+ trial_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+ trial_button.offset_left = -356.0
+ trial_button.offset_right = -8.0
+ trial_button.offset_top = 190.0
+ trial_button.offset_bottom = 238.0
+ root.add_child(trial_button)
+ trial_button.pressed.connect(_toggle_force_trial)
+ if OS.has_feature("web") and JavaScriptBridge.eval("new URLSearchParams(location.search).get('simulation') === 'forces'"):
+  _toggle_force_trial()
  var walking := HBoxContainer.new()
  walking.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
  walking.offset_left = 12.0
@@ -358,8 +370,11 @@ func _process(delta: float) -> void:
  camera.look_at(boat.global_position+Vector3.UP*4.0)
  var tonnes: float = flooding_system.total_water_tonnes() if flooding_system != null else 0.0
  var helm := $Boat/Mechanisms
+ var displayed_speed := Vector2(boat.linear_velocity.x,boat.linear_velocity.z).length() if boat.force_trial else _observed_speed
  var rope_state: String = "CONNECTED" if helm.steering_rope_intact else "CUT"
- status.text = "APEX  |  %.1f m/s  |  RUDDER %.0f deg  |  ROPE %s  |  FLOOD %.1f t" % [_observed_speed,rad_to_deg(helm.actual_rudder_angle),rope_state,tonnes]
+ status.text = ("FORCE TRIAL  |" if boat.force_trial else "APEX  |") + "  %.1f m/s  |  RUDDER %.0f deg  |  ROPE %s  |  FLOOD %.1f t" % [displayed_speed,rad_to_deg(helm.actual_rudder_angle),rope_state,tonnes]
+ if boat.force_trial and not boat.hydro_report.is_empty():
+  status.text += "\nBUOYANCY %.0f kN | WIND %.1f kN | STEERING LINES %.0f / %.0f N"%[boat.hydro_report.buoyancy.length()/1000.0,boat.rig_report.force.length()/1000.0,helm.port_line_tension,helm.starboard_line_tension]
 func _walk_input(key: String) -> void:
  if key == "STOP":
   active_walk_buttons.clear()
@@ -378,3 +393,7 @@ func _update_walk_vector() -> void:
  if active_walk_buttons.has("▲"): axis.y -= 1.0
  if active_walk_buttons.has("▼"): axis.y += 1.0
  player.motion_input = axis.normalized()
+
+func _toggle_force_trial() -> void:
+ boat.set_force_trial(not boat.force_trial)
+ trial_button.text = "RETURN TO PROTOTYPE" if boat.force_trial else "PHYSICS TRIAL"

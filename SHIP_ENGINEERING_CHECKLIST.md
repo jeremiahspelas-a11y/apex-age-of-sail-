@@ -7,6 +7,10 @@
 - [ ] means absent, incomplete, or unverified. **Never mark complete from a design mockup, GitHub commit alone, or headless export.**
 - Each subsystem needs: dimensions/materials, coupling to neighboring systems, automated tests, rendered screenshots, Android performance tests.
 
+## October 28 force-driven trial
+
+An opt-in rigid-body trial and the first loaded wheel/line/tiller/rudder mechanism are implemented. The wheel stays by explicit user preference; the target is a historically inspired future sailing trainer. See [physics foundation](docs/physics-foundation.md) for equations, input adapters, native/browser evidence and provisional parameters. Do not mark full hydrodynamics, rope/cloth dynamics or VR training complete.
+
 ## October 28 construction evidence
 
 The retained ship now has a tested geometry/articulation refit: station-fitted upperworks and decks, aligned collision, traversable quarterdeck/forecastle stairs, hinged original fittings, eight curved cloth/yard assemblies, mast steps, standing rigging and distinct shared materials. See [measured changes, renders and limits](docs/ship-refit.md). Native construction and Spatial QA tests passed locally; PR checks report the exact current build status. Physical Android verification remains pending.

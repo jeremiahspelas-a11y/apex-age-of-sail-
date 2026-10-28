@@ -100,7 +100,7 @@ func run() -> void:
  check(wheel_ring != null,"Original helm ring must be articulated with its spokes and hub")
  if wheel_ring != null:
   check(wheel_ring.to_global(Vector3(0,2.95,10.8)).distance_to(mechanism.wheel.global_position) < 0.001,"Helm must rotate around its axle rather than the ship origin")
- check(mechanism.wheel.get_child_count() == 10,"Helm ring, eight spokes and hub must rotate together")
+ check(mechanism.wheel.get_child_count() == 11,"Helm ring, eight spokes, hub and drum must rotate together")
  check(mechanism.rudder.position.is_equal_approx(Vector3(0,0.15,13.15)),"Rudder must remain on its stern hinge")
  check(not Refit.find_mesh(visual,"V9_rudder_blade").visible and not Refit.find_mesh(visual,"legacy_054_Rudder blade").visible,"Duplicate fixed rudder blades must be hidden")
  mechanism.toggle_doors()
