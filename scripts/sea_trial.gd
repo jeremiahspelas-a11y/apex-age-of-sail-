@@ -32,6 +32,7 @@ var _last_boat_position := Vector3.ZERO
 var _observed_speed := 0.0
 var flooding_system: Node
 var selected_compartment := 1
+var spatial_qa: Node
 func _ready() -> void:
  var canvas := CanvasLayer.new()
  add_child(canvas)
@@ -47,6 +48,9 @@ func _ready() -> void:
  canvas.add_child(root)
  normal_ui = root
  _build_fly_controls(canvas)
+ spatial_qa = preload("res://scripts/spatial_qa.gd").new()
+ add_child(spatial_qa)
+ spatial_qa.setup(boat, camera, canvas)
  var sailing := GridContainer.new()
  sailing.columns = 4
  sailing.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -129,6 +133,12 @@ func _build_fly_controls(canvas: CanvasLayer) -> void:
   vertical.add_child(b)
   b.button_down.connect(_fly_press.bind(item[1]))
   b.button_up.connect(_fly_release.bind(item[1]))
+ var pin := Button.new()
+ pin.text = "PIN ISSUE"
+ pin.position = Vector2(150, 56)
+ pin.custom_minimum_size = Vector2(125, 48)
+ canvas.add_child(pin)
+ pin.pressed.connect(_pin_issue)
  var photo := Button.new()
  photo.text = "HIDE HUD"
  photo.position = Vector2(12, 110)
@@ -144,6 +154,11 @@ func _build_fly_controls(canvas: CanvasLayer) -> void:
  canvas.add_child(restore)
  restore.pressed.connect(_toggle_photo)
  restore_hud_button = restore
+
+func _pin_issue() -> void:
+ if not god_mode:
+  _toggle_fly()
+ spatial_qa.begin_pin()
 
 func _toggle_fly() -> void:
  god_mode = not god_mode
@@ -248,6 +263,12 @@ func _unhandled_input(event: InputEvent) -> void:
    KEY_S: command("lower")
    KEY_Q: command("sheet_l")
    KEY_E: command("sheet_r")
+ if god_mode and spatial_qa.waiting_for_point and event is InputEventScreenTouch:
+  if event.pressed:
+   spatial_qa.pick(event.position)
+  return
+ if god_mode and spatial_qa.waiting_for_point and event is InputEventScreenDrag:
+  return
  if god_mode and event is InputEventScreenTouch:
   var half := get_viewport().get_visible_rect().size.x * 0.5
   if event.pressed:
@@ -287,6 +308,8 @@ func _unhandled_input(event: InputEvent) -> void:
   orbit -= event.relative.x*0.004
 func _process(delta: float) -> void:
  if god_mode:
+  if spatial_qa.waiting_for_point:
+   return
   _fly_step(delta)
   return
  if delta > 0.0001:
