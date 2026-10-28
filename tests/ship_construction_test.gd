@@ -49,6 +49,15 @@ func run() -> void:
  var materials: Node = game.get_node("Boat/Wetness")
  check(mechanism.rig_sails.size() == 8 and mechanism.rig_yards.size() == 8,"Exactly eight original sail/yard pairs must remain")
  check(materials.classifications.get("canvas",0) == 8,"Only the eight sails should be canvas")
+ var structure := game.get_node("Boat/ShipStructure")
+ for part in structure.find_children("*","MeshInstance3D",true,false):
+  check(not str(part.get_parent().name).begins_with("Rib_"),"Original frames must not receive duplicate procedural rib meshes")
+  if "DeckBeam_" in str(part.name):
+   var box: AABB = part.mesh.get_aabb()
+   box.position += part.position
+   for opening: Rect2 in Refit.HATCHES:
+    var footprint := Rect2(Vector2(box.position.x,box.position.z),Vector2(box.size.x,box.size.z))
+    check(not footprint.intersects(opening),"Deck beams must frame around rather than obstruct hatch openings")
  for name in ["legacy_000_Fairing-study wooden hull","legacy_001_Main deck","legacy_002_Raised quarterdeck","legacy_003_Forecastle"]:
   check(not Refit.find_mesh(visual,name).visible,"Superseded hull/deck must not overlap: "+name)
  var bowsprit := Refit.find_mesh(visual,"legacy_053_Bowsprit")

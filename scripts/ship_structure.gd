@@ -16,7 +16,7 @@ func _ready() -> void:
  # Remove the overlapping obsolete fairing-study hull ONLY when the newer
  # V6 closed hull is present. This preserves the original late-period ship rig.
  _audit_original_projection_meshes()
- # Construction pass 1: coherent ship-interior frame, beam and keelson skeleton.
+ # Reuse the refitted original frames; add their floor, beam and keelson supports.
  # Visual members belong to the vessel transform rather than world-space decoration.
  build_timber_skeleton()
  # Preserve original GLB exterior; second procedural hull used incorrect shorter dimensions.
@@ -81,15 +81,16 @@ func build_timber_skeleton() -> void:
   var beam: float = Refit.deck_width(z)-0.20
   var deck_y: float = Refit.MAIN_BOTTOM-0.12
   add_timber("Floor_%02d" % station,Vector3(beam*1.8,0.24,0.21),Vector3(0,-1.2,z),material)
-  for side in [-1,1]:
-   var contour := PackedVector3Array()
-   for level in 9:
-    var t: float = float(level)/8.0
-    var x: float = float(side) * beam * (0.35 + 0.65*sin(t*PI*0.5))
-    var y: float = lerpf(-1.35,deck_y,t)
-    contour.append(Vector3(x,y,z))
-   add_curved_frame("Rib_%02d_%s" % [station,"P" if side < 0 else "S"],contour,0.14,material)
-  add_timber("DeckBeam_%02d" % station,Vector3(beam*1.98,0.23,0.24),Vector3(0,deck_y,z),material)
+  var hatch_half := 0.0
+  for opening: Rect2 in Refit.HATCHES:
+   if z > opening.position.y-0.12 and z < opening.end.y+0.12:
+    hatch_half = maxf(hatch_half,opening.size.x*0.5+0.10)
+  if hatch_half > 0.0:
+   var length := beam*0.99-hatch_half
+   for side in [-1.0,1.0]:
+    add_timber("HatchDeckBeam_%02d_%s"%[station,str(side)],Vector3(length,0.23,0.24),Vector3(side*(hatch_half+length*0.5),deck_y,z),material)
+  else:
+   add_timber("DeckBeam_%02d"%station,Vector3(beam*1.98,0.23,0.24),Vector3(0,deck_y,z),material)
 
  for side in [-1,1]:
   add_timber("Stringer_%s" % ["P" if side < 0 else "S"],Vector3(0.2,0.22,20.0),Vector3(float(side)*2.18,-0.46,0),material)
