@@ -10,6 +10,7 @@ var editor: TextEdit
 var panel: Control
 var hint: Label
 var marker_root: Node3D
+var export_button: Button
 
 func setup(ship: Node3D, view: Camera3D, ui: CanvasLayer) -> void:
  boat = ship
@@ -18,6 +19,13 @@ func setup(ship: Node3D, view: Camera3D, ui: CanvasLayer) -> void:
  marker_root = Node3D.new()
  boat.add_child(marker_root)
  _collect_meshes(boat)
+ export_button = Button.new()
+ export_button.text = "EXPORT NOTES"
+ export_button.position = Vector2(150, 110)
+ export_button.custom_minimum_size = Vector2(140, 46)
+ export_button.visible = false
+ canvas.add_child(export_button)
+ export_button.pressed.connect(_export_notes)
  panel = PanelContainer.new()
  panel.position = Vector2(12, 166)
  panel.custom_minimum_size = Vector2(310, 185)
@@ -52,7 +60,7 @@ func _collect_meshes(node: Node) -> void:
 
 func begin_pin() -> void:
  waiting_for_point = true
- panel.visible = true
+ panel.visible = false
  hint.text = "Tap the ship to place a pin"
  editor.text = ""
 
@@ -60,6 +68,7 @@ var selected: Dictionary = {}
 
 func pick(screen_position: Vector2) -> void:
  waiting_for_point = false
+ panel.visible = true
  var origin := camera.project_ray_origin(screen_position)
  var ray := camera.project_ray_normal(screen_position)
  var best := INF
@@ -76,7 +85,7 @@ func pick(screen_position: Vector2) -> void:
    continue
   var faces: PackedVector3Array = item["faces"]
   for i in range(0, faces.size(), 3):
-   var hit := Geometry3D.ray_intersects_triangle(local_origin, local_direction, faces[i], faces[i+1], faces[i+2])
+   var hit: Variant = Geometry3D.ray_intersects_triangle(local_origin, local_direction, faces[i], faces[i+1], faces[i+2])
    if hit == null:
     continue
    var world_hit: Vector3 = mi.global_transform * hit
@@ -120,11 +129,15 @@ func _save_note() -> void:
  })
  if is_instance_valid(preview):
   preview = null
+ export_button.visible = true
  panel.visible = false
  selected = {}
  print("APEX SPATIAL QA saved note ", notes.size())
 
 func _export_notes() -> void:
+ if notes.is_empty():
+  hint.text = "Save a note before exporting"
+  return
  var report := {"schema": "apex-spatial-qa-v1", "notes": notes}
  var bytes := JSON.stringify(report, "  ").to_utf8_buffer()
  if OS.has_feature("web"):
