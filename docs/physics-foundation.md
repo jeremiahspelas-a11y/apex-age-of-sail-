@@ -4,12 +4,15 @@ The goal is a historically inspired, mechanically understandable sailing trainer
 
 ## Try the new mode
 
+The starting view is first person on the walkable deck. Arrow keys/on-screen arrows walk relative to horizontal gaze; right-mouse drag or a right-side touchscreen drag looks around. The camera follows the player's eye position and vessel heading with an upright desktop horizon. FLY / WALK (F) enters inspection and returns to the deck; the player stays aboard during inspection. A/D remain helm commands, W/S effective sail area, and Q/E yard trim. These are trainer input adapters, not simulated hands at each fitting.
+
 In the game, use **PHYSICS TRIAL** below the sailing/damage controls. **RETURN TO PROTOTYPE** restores the earlier controlled mode. A web build also accepts `?simulation=forces`. Entering the trial resets height/velocity once, then Godot's rigid-body solver advances the ship; the trial does not continuously set its position, heel or heading.
 
 The HUD shows buoyancy, total wind load, and port/starboard steering-line tension. Port/Starboard ask a force-limited virtual crew member to turn the wheel. LINK CUT disconnects the steering transmission. The input adapter `Mechanisms.set_helm_torque(torque_nm)` accepts direct wheel torque; zero torque releases it for backdriving. `use_button_helm()` returns to the button-controlled crew. VR grip constraints/controllers and haptics are future work.
 
 ## Implemented mechanics
 
+- **Reusable core:** hull section geometry and water sampling enter through callbacks; hull evaluation returns force/moment data. A separate `RefCounted` steering solver owns the wheel/rudder state and accepts explicit torque/command inputs without nodes or assets. The pinnace scene adapters provide geometry, apply loads and render state. See [reuse contracts and examples](reusable-ship-mechanics.md). The complete ship is not yet a packaged drop-in resource.
 - **Buoyancy:** 660 retained body-fixed integration columns from a 20×40 sampling grid clip the existing hull volume against a 3×7 sampled sea-height field. Their displaced volumes produce upward forces and moments about the chosen center of mass. The numerical full-volume result is 382.82 m³ versus the triangulated reference's 379.69 m³ (0.83% difference). Real waterline comes from submerged volume, rather than the prototype's fixed height offset.
 - **Rigid-body response:** translation, pitch, roll and yaw are released. Forces and moments enter through `_integrate_forces`. Empirical, anisotropic water damping opposes point velocity and is tested to dissipate energy. The existing CPU/GPU wave field is shared; the ocean surface now exposes the height method the boat actually requests.
 - **Mass:** the initial 80,000 kg dry mass, center of mass `(0,−0.60,0)` and box-based inertia are explicitly provisional configuration values. Existing compartment water contributes weight and shifts the center of mass. There is no claim these values authenticate a historical vessel.
@@ -29,6 +32,8 @@ The two lines are lumped elastic elements with massless ideal routing blocks. Th
 `tests/force_trial_test.gd` checks an analytical half-submerged box (`F = ρgV` and its force center), dry/full immersion, hull grid convergence, displacement-derived equilibrium, added-cargo draft, restoring heel moment, dissipative damping, and an actual engine-driven impulse/recovery test. It also checks individual sail pressure loads, zero wind/reef load, stored steering energy decay, tension-only lines, water-load backdriving, disconnected steering, finite crew effort/stops and the tiller/staff linkage geometry.
 
 The existing ship-construction and Spatial QA regressions remain enabled. Browser CI enters the physical trial, records a finite buoyant physics sample and captures its rendered state. Native and browser tests do not establish physical Android performance, VR comfort or lesson accuracy.
+
+`tests/trainer_test.gd` checks eye position, gaze-relative walking at a nonzero head pitch, grounded collision, player visibility, movement suspension/deck carry during inspection, return to the eye camera, heading/horizon behavior and independent touch ownership. The force test also exercises caller-supplied rectangular hull sections and independent steering instances without the vessel scene.
 
 ## Next connected mechanism
 

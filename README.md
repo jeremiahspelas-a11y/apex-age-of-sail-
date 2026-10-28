@@ -1,5 +1,23 @@
 # APEX Age of Sail
 
-Godot 4.7.2 pirate sailing prototype. Target: playable Android Chrome Web export with ship, ocean, character, camera and touch controls.
+Godot 4.7.2 sailing project. The current focus is a **first-person sailing trainer** that exercises reusable ship mechanics. APEX's wider game remains the long-term goal. Keep the working steering wheel and a coherent, historically inspired ship; exact period reconstruction is secondary to understandable operation.
 
-Repository initialized. Full Godot source and GitHub Actions web export are pending upload and validation. This README is not a playable build.
+Start on deck, walk with the arrow keys or on-screen arrows, and look with right-mouse drag or a drag on the right side of the touchscreen. A/D operate the helm, W/S change effective sail area, and Q/E trim the yards. F switches between the deck and fly inspection; P hides/restores the HUD. Buttons provide the same sailing commands on touchscreens.
+
+**PHYSICS TRIAL** enables displaced-volume buoyancy, individual sail pressure loads, and the loaded wheel → drum → two steering lines → tiller → rudder transmission. The earlier controlled prototype remains available. Web builds also accept `?simulation=forces`. This is a foundation, with provisional parameters: full running rigging, cloth mechanics, calibrated lessons and VR interactions remain unfinished.
+
+## Run locally
+
+Restore the original source model before importing the project:
+
+```sh
+base64 --decode assets/apex_pinnace_v9.glb.xz.base64 | xz --decompress > assets/apex_pinnace_v9.glb
+```
+
+Open `project.godot` in Godot 4.7.2 and run `physics_trial.tscn`. For the Web export, install the matching export templates and use the `Web` preset. GitHub Actions imports, exports, runs native regressions, and checks the rendered browser build. Pull requests produce review artifacts; main's workflow handles Pages deployment.
+
+## Reuse the mechanics
+
+The scene-independent `scripts/hull_hydrostatics.gd` accepts hull sections, body state and a water-height callback; `scripts/steering_transmission.gd` accepts helm effort and water hinge torque. They return forces/moments or steering state without depending on APEX's camera, input or assets. [Integration examples and limits](docs/reusable-ship-mechanics.md) describe the contracts. The full vessel is not yet packaged as a drop-in asset.
+
+[Physics assumptions and verification](docs/physics-foundation.md) · [Ship construction evidence](docs/ship-refit.md) · [Active QA ledger](QA_ACTIVE_CHECKLIST.md)

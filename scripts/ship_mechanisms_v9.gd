@@ -2,6 +2,8 @@ extends Node3D
 signal steering_connection_changed(connected: bool)
 ## Articulate the imported parts at measured sockets; no duplicate solid proxy fittings.
 const Refit = preload("res://scripts/ship_refit.gd")
+const SteeringTransmission = preload("res://scripts/steering_transmission.gd")
+var helm := SteeringTransmission.new()
 const SailCloth = preload("res://scripts/sail_cloth.gd")
 @export var use_whipstaff := false # wheel preferred for the historically inspired trainer
 @onready var vessel: RigidBody3D = get_parent() as RigidBody3D
@@ -12,43 +14,35 @@ var doors: Array[Node3D] = []
 var hatches: Array[Node3D] = []
 var door_open := false
 var hatch_open := false
-var wheel_angle := 0.0
-var wheel_velocity := 0.0
-var wheel_inertia := 20.0 # provisional kg m2
-var drum_radius := 0.18
-var wheel_handle_radius := 0.72
-var wheel_stop := 5.0
-var steering_line_stiffness := 8000.0 # effective N/m, including entire line route
-var steering_line_damping := 160.0
-var steering_line_pretension := 120.0
-var port_line_tension := 120.0
-var starboard_line_tension := 120.0
 var steering_lines: Array[MeshInstance3D] = []
 var _line_clock := 0.0
-var direct_helm_control := false
-var direct_helm_torque := 0.0
-var staff_command := 0.0
-var rudder_velocity := 0.0
-var rudder_inertia := 200.0 # provisional blade+tiller inertia, kg m2
-var crew_hand_force := 0.0
-var last_water_hinge_torque := 0.0
-var actual_rudder_angle := 0.0
-var steering_rope_intact := true
 var whipstaff: Node3D
 var staff_mesh: MeshInstance3D
 var rowle: MeshInstance3D
-var historical_rudder_limit := deg_to_rad(32.0) # provisional mechanical stops; 8 degrees in optional whipstaff mode
 var original_rudder: MeshInstance3D
 var original_wheel: MeshInstance3D
 var rig_sails: Array[MeshInstance3D] = []
 var rig_yards: Array[MeshInstance3D] = []
 
+var actual_rudder_angle: float:
+ get: return helm.rudder_angle
+var steering_rope_intact: bool:
+ get: return helm.connected
+var rudder_inertia: float:
+ get: return helm.rudder_inertia
+var wheel_inertia: float:
+ get: return helm.wheel_inertia
+var port_line_tension: float:
+ get: return helm.port_line_tension
+var starboard_line_tension: float:
+ get: return helm.starboard_line_tension
+
 func toggle_steering_rope() -> void:
- steering_rope_intact = not steering_rope_intact
- steering_connection_changed.emit(steering_rope_intact)
+ helm.connected = not helm.connected
+ steering_connection_changed.emit(helm.connected)
 
 func rudder_angle_for_physics() -> float:
- return actual_rudder_angle
+ return helm.rudder_angle
 
 func _ready() -> void:
  var imported := vessel.get_node_or_null("HullVisual")
@@ -57,7 +51,7 @@ func _ready() -> void:
   return
  _bind_rudder(imported)
  _bind_helm(imported)
- if use_whipstaff: historical_rudder_limit = deg_to_rad(8.0)
+ if use_whipstaff: helm.rudder_stop = deg_to_rad(8.0)
  _bind_period_steering(imported)
  _bind_steering_route()
  _bind_rig(imported)
@@ -183,13 +177,13 @@ func _process(delta: float) -> void:
  if vessel == null or rudder == null or wheel == null: return
  var command := clampf(float(vessel.get("rudder_input")),-1.0,1.0)
  if not vessel.force_trial:
-  wheel_angle = move_toward(wheel_angle,command*wheel_stop,delta*1.5)
-  var demanded := command*historical_rudder_limit if use_whipstaff else asin(clampf(wheel_angle*drum_radius/1.70,-1.0,1.0))
-  if steering_rope_intact: actual_rudder_angle = clampf(demanded,-historical_rudder_limit,historical_rudder_limit)
-  rudder_velocity = 0.0
-  wheel_velocity = 0.0
- rudder.rotation.y = actual_rudder_angle
- wheel.rotation.z = wheel_angle
+  helm.wheel_angle = move_toward(helm.wheel_angle,command*helm.wheel_stop,delta*1.5)
+  var demanded := command*helm.rudder_stop if use_whipstaff else asin(clampf(helm.wheel_angle*helm.drum_radius/1.70,-1.0,1.0))
+  if helm.connected: helm.rudder_angle = clampf(demanded,-helm.rudder_stop,helm.rudder_stop)
+  helm.rudder_velocity = 0.0
+  helm.wheel_velocity = 0.0
+ rudder.rotation.y = helm.rudder_angle
+ wheel.rotation.z = helm.wheel_angle
  _update_whipstaff()
  _line_clock += delta
  if _line_clock >= 0.1:
@@ -207,8 +201,7 @@ func toggle_doors() -> void: door_open = not door_open
 func toggle_hatches() -> void: hatch_open = not hatch_open
 
 func _bind_period_steering(root: Node) -> void:
- # RMG c.1703 wheel evidence postdates our 1670–1690 baseline. Preserve the source
- # assembly for inspection but use a provisional whipstaff/tiller arrangement.
+ # Keep the preferred wheel; the optional whipstaff is a separate visual adapter.
  wheel.visible = not use_whipstaff
  var pedestal := Refit.find_mesh(root,"v8_helm_pedestal")
  if pedestal != null: pedestal.visible = not use_whipstaff
@@ -251,7 +244,7 @@ func _bind_period_steering(root: Node) -> void:
 
 func _update_whipstaff() -> void:
  if whipstaff == null: return
- var tip := rudder.position + Basis(Vector3.UP,actual_rudder_angle)*Vector3(0,0,-1.70)
+ var tip := rudder.position + Basis(Vector3.UP,helm.rudder_angle)*Vector3(0,0,-1.70)
  var depth := whipstaff.position.y-tip.y
  whipstaff.rotation.z = atan2(tip.x,depth)
  # Slide the staff through its rowle so the lower tip remains on the horizontal tiller.
@@ -262,88 +255,24 @@ func _update_whipstaff() -> void:
  cylinder.height = 2.35+lower_length
  staff_mesh.position.y = (2.35-lower_length)*0.5
 
-func _step_whipstaff(delta: float,water_torque: float) -> float:
- # Virtual work through the sliding staff: hand force -> tiller torque.
- # A finite crew force permits stall and kickback; no angle is imposed in force mode.
- var depth := 1.15
- var length := 1.70
- var upper := 2.35
- var ratio := length*sin(actual_rudder_angle)/depth
- var staff_angle := -atan(ratio)
- var hand_x := -upper*sin(staff_angle)
- var derivative := upper*length*cos(actual_rudder_angle)*cos(staff_angle)/(depth*(1.0+ratio*ratio))
- var target_angle := clampf(float(vessel.rudder_input),-1.0,1.0)*historical_rudder_limit
- var target_x := upper*sin(atan(length*sin(target_angle)/depth))
- crew_hand_force = clampf(500.0*(target_x-hand_x)-120.0*derivative*rudder_velocity,-180.0,180.0) if steering_rope_intact else 0.0
- last_water_hinge_torque = water_torque
- var torque := crew_hand_force*derivative+water_torque-30.0*rudder_velocity
- var acceleration := torque/rudder_inertia
- var old_velocity := rudder_velocity
- rudder_velocity += acceleration*delta
- actual_rudder_angle += rudder_velocity*delta
- if absf(actual_rudder_angle)>historical_rudder_limit:
-  actual_rudder_angle = clampf(actual_rudder_angle,-historical_rudder_limit,historical_rudder_limit)
-  if actual_rudder_angle*rudder_velocity>0.0: rudder_velocity = 0.0
- return (rudder_velocity-old_velocity)/maxf(delta,0.000001)
-
 func set_helm_torque(torque_nm: float) -> void:
- # Adapter for future hand/VR controls. Zero torque means a released, backdrivable wheel.
- direct_helm_control = true
- direct_helm_torque = torque_nm
+ helm.set_helm_torque(torque_nm)
 
 func use_button_helm() -> void:
- direct_helm_control = false
+ helm.use_button_helm()
 
 func step_loaded_steering(delta: float,water_torque: float) -> Dictionary:
- if use_whipstaff:
-  return {"rudder_acceleration":_step_whipstaff(delta,water_torque),"wheel_acceleration":0.0}
- var old_rudder := rudder_velocity
- var old_wheel := wheel_velocity
- last_water_hinge_torque = water_torque
- var dt := delta/4.0
- for substep in 4:
-  var tip := Vector3(-1.70*sin(actual_rudder_angle),0,13.15-1.70*cos(actual_rudder_angle))
-  var derivative := Vector3(-1.70*cos(actual_rudder_angle),0,1.70*sin(actual_rudder_angle))
-  var lengths: Array[float] = []
-  var derivatives: Array[float] = []
-  for side in [-1.0,1.0]:
-   var arm := tip-Vector3(side*1.10,0,11.45)
-   lengths.append(arm.length())
-   derivatives.append(arm.normalized().dot(derivative))
-  var extension_port := lengths[0]-1.10+drum_radius*wheel_angle
-  var extension_starboard := lengths[1]-1.10-drum_radius*wheel_angle
-  port_line_tension = maxf(0.0,steering_line_pretension+steering_line_stiffness*extension_port+steering_line_damping*(derivatives[0]*rudder_velocity+drum_radius*wheel_velocity)) if steering_rope_intact else 0.0
-  starboard_line_tension = maxf(0.0,steering_line_pretension+steering_line_stiffness*extension_starboard+steering_line_damping*(derivatives[1]*rudder_velocity-drum_radius*wheel_velocity)) if steering_rope_intact else 0.0
-  var target := clampf(float(vessel.rudder_input),-1.0,1.0)*wheel_stop
-  var crew_torque := direct_helm_torque if direct_helm_control else 55.0*(target-wheel_angle)-35.0*wheel_velocity
-  crew_torque = clampf(crew_torque,-180.0*wheel_handle_radius,180.0*wheel_handle_radius)
-  crew_hand_force = crew_torque/wheel_handle_radius
-  var wheel_torque := crew_torque+(starboard_line_tension-port_line_tension)*drum_radius-5.0*wheel_velocity
-  var tiller_torque := -port_line_tension*derivatives[0]-starboard_line_tension*derivatives[1]+water_torque-30.0*rudder_velocity
-  wheel_velocity += wheel_torque/wheel_inertia*dt
-  rudder_velocity += tiller_torque/rudder_inertia*dt
-  wheel_angle += wheel_velocity*dt
-  actual_rudder_angle += rudder_velocity*dt
-  if absf(actual_rudder_angle)>historical_rudder_limit:
-   actual_rudder_angle = clampf(actual_rudder_angle,-historical_rudder_limit,historical_rudder_limit)
-   if actual_rudder_angle*rudder_velocity>0.0: rudder_velocity = 0.0
-  if absf(wheel_angle)>wheel_stop:
-   wheel_angle = clampf(wheel_angle,-wheel_stop,wheel_stop)
-   if wheel_angle*wheel_velocity>0.0: wheel_velocity = 0.0
- return {"rudder_acceleration":(rudder_velocity-old_rudder)/maxf(delta,0.000001),"wheel_acceleration":(wheel_velocity-old_wheel)/maxf(delta,0.000001)}
+ return helm.step(delta,water_torque,float(vessel.rudder_input),use_whipstaff)
 
 func steering_energy() -> float:
- var tip := Vector3(-1.70*sin(actual_rudder_angle),0,13.15-1.70*cos(actual_rudder_angle))
- var extension_p := tip.distance_to(Vector3(-1.10,0,11.45))-1.10+drum_radius*wheel_angle+steering_line_pretension/steering_line_stiffness
- var extension_s := tip.distance_to(Vector3(1.10,0,11.45))-1.10-drum_radius*wheel_angle+steering_line_pretension/steering_line_stiffness
- return 0.5*wheel_inertia*wheel_velocity*wheel_velocity+0.5*rudder_inertia*rudder_velocity*rudder_velocity+0.5*steering_line_stiffness*(pow(maxf(0,extension_p),2)+pow(maxf(0,extension_s),2))
+ return helm.steering_energy()
 
 func _bind_steering_route() -> void:
  var drum := MeshInstance3D.new()
  drum.name = "WoodenHelmDrum"
  var cylinder := CylinderMesh.new()
- cylinder.top_radius = drum_radius
- cylinder.bottom_radius = drum_radius
+ cylinder.top_radius = helm.drum_radius
+ cylinder.bottom_radius = helm.drum_radius
  cylinder.height = 0.40
  cylinder.radial_segments = 12
  drum.mesh = cylinder
@@ -366,19 +295,19 @@ func _bind_steering_route() -> void:
  _update_steering_route()
 
 func _update_steering_route() -> void:
- var tip := rudder.position+Basis(Vector3.UP,actual_rudder_angle)*Vector3(0,0,-1.70)
+ var tip := rudder.position+Basis(Vector3.UP,helm.rudder_angle)*Vector3(0,0,-1.70)
  for i in steering_lines.size():
   var line := steering_lines[i]
-  line.visible = steering_rope_intact and not use_whipstaff
+  line.visible = helm.connected and not use_whipstaff
   var side := -1.0 if i==0 else 1.0
-  var points := [Vector3(side*drum_radius,wheel.position.y,wheel.position.z+0.18),Vector3(side*0.35,wheel.position.y-1.0,wheel.position.z+0.18),Vector3(side*1.10,0.15,11.45)]
+  var points := [Vector3(side*helm.drum_radius,wheel.position.y,wheel.position.z+0.18),Vector3(side*0.35,wheel.position.y-1.0,wheel.position.z+0.18),Vector3(side*1.10,0.15,11.45)]
   var st := SurfaceTool.new()
   st.begin(Mesh.PRIMITIVE_TRIANGLES)
   st.set_smooth_group(0)
   for k in range(points.size()-1): Refit._tube(st,points[k],points[k+1],0.018)
   var block: Vector3 = points[-1]
-  var tension := port_line_tension if i==0 else starboard_line_tension
-  var payout := 1.10+side*drum_radius*wheel_angle
+  var tension := helm.port_line_tension if i==0 else helm.starboard_line_tension
+  var payout := 1.10+side*helm.drum_radius*helm.wheel_angle
   var sag := minf(0.25,sqrt(maxf(0.0,payout-block.distance_to(tip)))*0.4) if tension<0.1 else 0.0
   for k in 4:
    var t0 := float(k)/4.0

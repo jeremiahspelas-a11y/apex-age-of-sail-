@@ -2,6 +2,12 @@
 
 Updated: 2026-10-28. This is the source of truth for what was *actually* verified.
 
+## First-person trainer and reusable mechanics — 2026-10-28
+- User clarified the near-term product: a first-person sailing trainer that develops reusable mechanics for a future shareable working ship, while preserving APEX's broader goal.
+- Default camera is now at the deck player's eye; walking follows horizontal gaze. Right-drag/touch look, existing sailing buttons/keys and fly inspection remain available. Inspection suspends walking but keeps the player carried with the ship; returning restores the eye camera. Player visuals are hidden in deck view. This is desktop/touch first person, not VR support.
+- Extracted scene-independent `steering_transmission.gd`; hull hydrostatics now accepts section geometry/bounds from callers instead of preloading the pinnace refit. Both own independent state and accept explicit physics inputs. [Reuse guide](docs/reusable-ship-mechanics.md) records current boundaries and the remaining full-ship packaging milestones.
+- Native trainer, force, construction and Spatial QA tests passed locally. Local Web release export and Chromium force-trial rendering passed without browser errors. Quantitative handling calibration, loaded running rigging, complete lessons and VR remain open.
+
 ## Force-driven training foundation — 2026-10-28
 - User authorized beginning coupled mechanics, then clarified the goal: a functioning, historically inspired ship suitable for future VR education; **keep the steering wheel**. Exact 1670–1690 reconstruction does not override that preference. Wheel is default; provisional whipstaff remains an optional configuration.
 - Added an opt-in PHYSICS TRIAL with displaced-volume buoyancy, restoring moments, empirical dissipative water resistance, eight individual sail-pressure loads and real unlocked rigid-body motion. The earlier prototype remains selectable. Ocean surface now exposes the shared `get_height` API requested by the ship.

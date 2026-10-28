@@ -1,12 +1,16 @@
 extends Node3D
 @onready var boat: RigidBody3D = $Boat
 @onready var camera: Camera3D = $Camera3D
+@onready var player: CharacterBody3D = $Player
+var view_yaw := 0.0
+var view_pitch := 0.0
 var rudder := 0.0
 var reef := 0.65
 var sheet := 0.4
 var orbit := 0.65
 var pitch := 0.40
 var dragging := false
+var deck_look_touch := -1
 var god_mode := false
 var photo_mode := false
 var fly_speed := 9.0
@@ -44,12 +48,20 @@ func _ready() -> void:
  flooding_system = boat.get_node_or_null("ShipIntegrity")
  status = Label.new()
  status.position = Vector2(16,12)
+ status.add_theme_font_size_override("font_size",14)
+ status.add_theme_color_override("font_outline_color",Color.BLACK)
+ status.add_theme_constant_override("outline_size",3)
  canvas.add_child(status)
  var root := Control.new()
  root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  root.mouse_filter = Control.MOUSE_FILTER_IGNORE
  canvas.add_child(root)
  normal_ui = root
+ var trainer_hint := Label.new()
+ trainer_hint.position = Vector2(16,165)
+ trainer_hint.text = "DECK VIEW\nArrows: walk | Right-drag: look\nA/D: helm | W/S: reef | Q/E: sheets\nF: fly inspection | P: hide HUD"
+ trainer_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ root.add_child(trainer_hint)
  _build_fly_controls(canvas)
  spatial_qa = preload("res://scripts/spatial_qa.gd").new()
  add_child(spatial_qa)
@@ -100,13 +112,13 @@ func _ready() -> void:
  walking.offset_top = -78.0
  walking.offset_bottom = -12.0
  root.add_child(walking)
- for label in ["◀", "▲", "▼", "▶", "STOP"]:
+ for action in [["LEFT","◀"],["FWD","▲"],["BACK","▼"],["RIGHT","▶"],["STOP","STOP"]]:
   var btn := Button.new()
-  btn.text = label
+  btn.text = action[0]
   btn.custom_minimum_size = Vector2(64,60)
   walking.add_child(btn)
-  btn.button_down.connect(_walk_input.bind(label))
-  btn.button_up.connect(_walk_release.bind(label))
+  btn.button_down.connect(_walk_input.bind(action[1]))
+  btn.button_up.connect(_walk_release.bind(action[1]))
  var jump := Button.new()
  jump.text = "JUMP"
  jump.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -116,6 +128,9 @@ func _ready() -> void:
  jump.offset_bottom = -12.0
  root.add_child(jump)
  jump.pressed.connect(_jump)
+ camera.near = 0.05
+ _update_player_view()
+ _deck_camera()
 func _build_fly_controls(canvas: CanvasLayer) -> void:
  var toggle := Button.new()
  fly_toggle = toggle
@@ -180,6 +195,9 @@ func _pin_issue() -> void:
 func _toggle_fly() -> void:
  spatial_qa._cancel()
  god_mode = not god_mode
+ dragging = false
+ deck_look_touch = -1
+ _update_player_view()
  _reset_fly_input()
  active_walk_buttons.clear()
  _update_walk_vector()
@@ -199,6 +217,26 @@ func _toggle_fly() -> void:
   camera.look_at(boat.global_position + Vector3.UP * 5.0)
   fly_yaw = camera.rotation.y
   fly_pitch = camera.rotation.x
+ else:
+  _deck_camera()
+
+func _update_player_view() -> void:
+ player.movement_enabled = not god_mode
+ # Keep an imported character's own placeholder visibility decision intact.
+ for child in player.get_children():
+  if child is Node3D and child.name != "PlayerCollider":
+   if not child.has_meta("trainer_visible"):
+    child.set_meta("trainer_visible",child.visible)
+   child.visible = bool(child.get_meta("trainer_visible")) if god_mode else false
+
+func _deck_camera() -> void:
+ camera.global_position = player.global_position+Vector3.UP*0.65
+ # Upright horizon for the desktop trainer; tracked XR pose will be a separate adapter.
+ camera.global_rotation = Vector3(view_pitch,boat.global_rotation.y+view_yaw,0.0)
+
+func _look(relative: Vector2) -> void:
+ view_yaw -= relative.x*0.004
+ view_pitch = clampf(view_pitch-relative.y*0.003,-1.35,1.35)
 
 func _reset_fly_input() -> void:
  fly_buttons.clear()
@@ -282,6 +320,9 @@ func command(action: String) -> void:
 func _input(event: InputEvent) -> void:
  # A release over a UI control must still release the stick that owns this finger.
  if event is InputEventScreenTouch and not event.pressed:
+  if event.index == deck_look_touch:
+   deck_look_touch = -1
+   dragging = false
   if event.index == left_touch:
    left_touch = -1
    stick_move = Vector2.ZERO
@@ -294,6 +335,10 @@ func _input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
  if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
   _reset_fly_input()
+  dragging = false
+  deck_look_touch = -1
+  active_walk_buttons.clear()
+  _update_walk_vector()
 
 func _unhandled_input(event: InputEvent) -> void:
  if god_mode and spatial_qa.is_active():
@@ -346,15 +391,17 @@ func _unhandled_input(event: InputEvent) -> void:
   stick_canvas.queue_redraw()
   return
  if event is InputEventScreenTouch:
-  dragging = event.pressed and event.position.x > get_viewport().get_visible_rect().size.x * 0.5
- if event is InputEventScreenDrag and dragging and god_mode:
-  fly_yaw -= event.relative.x * 0.004
-  fly_pitch = clampf(fly_pitch - event.relative.y * 0.003, -1.45, 1.45)
- elif event is InputEventScreenDrag and dragging:
-  orbit -= event.relative.x*0.004
-  pitch = clamp(pitch+event.relative.y*0.003,-0.1,1.0)
+  if event.pressed and deck_look_touch == -1 and event.position.x > get_viewport().get_visible_rect().size.x * 0.5:
+   deck_look_touch = event.index
+   dragging = true
+ if event is InputEventScreenDrag and dragging and event.index == deck_look_touch:
+  _look(event.relative)
  if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
-  orbit -= event.relative.x*0.004
+  if god_mode:
+   fly_yaw -= event.relative.x*0.004
+   fly_pitch = clampf(fly_pitch-event.relative.y*0.003,-1.45,1.45)
+  else:
+   _look(event.relative)
 func _process(delta: float) -> void:
  if god_mode:
   if spatial_qa.is_active():
@@ -364,17 +411,14 @@ func _process(delta: float) -> void:
  if delta > 0.0001:
   _observed_speed = boat.global_position.distance_to(_last_boat_position) / delta
  _last_boat_position = boat.global_position
- var distance := 37.0
- var offset := Vector3(sin(orbit)*cos(pitch),sin(pitch)+0.42,cos(orbit)*cos(pitch))*distance
- camera.global_position = camera.global_position.lerp(boat.global_position+offset,clamp(delta*4.0,0.0,1.0))
- camera.look_at(boat.global_position+Vector3.UP*4.0)
+ _deck_camera()
  var tonnes: float = flooding_system.total_water_tonnes() if flooding_system != null else 0.0
  var helm := $Boat/Mechanisms
  var displayed_speed := Vector2(boat.linear_velocity.x,boat.linear_velocity.z).length() if boat.force_trial else _observed_speed
  var rope_state: String = "CONNECTED" if helm.steering_rope_intact else "CUT"
- status.text = ("FORCE TRIAL  |" if boat.force_trial else "APEX  |") + "  %.1f m/s  |  RUDDER %.0f deg  |  ROPE %s  |  FLOOD %.1f t" % [displayed_speed,rad_to_deg(helm.actual_rudder_angle),rope_state,tonnes]
+ status.text = ("FORCES |" if boat.force_trial else "PROTOTYPE |") + " %.1f m/s | RUDDER %.0f deg | LINK %s | FLOOD %.1f t" % [displayed_speed,rad_to_deg(helm.actual_rudder_angle),rope_state,tonnes]
  if boat.force_trial and not boat.hydro_report.is_empty():
-  status.text += "\nBUOYANCY %.0f kN | WIND %.1f kN | STEERING LINES %.0f / %.0f N"%[boat.hydro_report.buoyancy.length()/1000.0,boat.rig_report.force.length()/1000.0,helm.port_line_tension,helm.starboard_line_tension]
+  status.text += "\nBUOYANCY %.0f kN | WIND %.1f kN | LINES %.0f / %.0f N"%[boat.hydro_report.buoyancy.length()/1000.0,boat.rig_report.force.length()/1000.0,helm.port_line_tension,helm.starboard_line_tension]
 func _walk_input(key: String) -> void:
  if key == "STOP":
   active_walk_buttons.clear()

@@ -121,6 +121,7 @@ func run() -> void:
   check(not hit.is_empty() and absf(hit.position.y+1.07) < 0.02,"Open hatch must reveal the lower deck without a phantom floor")
  # Move the real player up both companion stair ramps.
  var player: CharacterBody3D = game.get_node("Player")
+ player.movement_follows_view = false # construction routes are specified in ship axes
  player.position = Vector3(0,2.05,5.9)
  player.velocity = Vector3.ZERO
  player.motion_input = Vector2(0,1)

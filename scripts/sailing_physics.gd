@@ -2,6 +2,7 @@ extends RigidBody3D
 ## Stable prototype displacement model. Bow -Z, starboard +X.
 const Hydrostatics = preload("res://scripts/hull_hydrostatics.gd")
 const RigPressure = preload("res://scripts/rig_pressure_load.gd")
+const Refit = preload("res://scripts/ship_refit.gd")
 @export var force_trial := false
 @export var trial_dry_mass_kg := 80000.0 # provisional mass budget, not a historical measurement
 @export var trial_center_of_mass := Vector3(0,-0.60,0)
@@ -161,7 +162,7 @@ func _physics_process(delta: float) -> void:
 func prepare_force_trial() -> void:
  if hydro == null:
   hydro = Hydrostatics.new()
-  hydro.build_ship()
+  hydro.build_from_sections(Refit.hull_profile,AABB(Vector3(-3.45,-2.2,-13),Vector3(6.9,3.11,26.2)))
   rig_pressure = RigPressure.new()
   rig_pressure.bind(get_node("Mechanisms"))
 

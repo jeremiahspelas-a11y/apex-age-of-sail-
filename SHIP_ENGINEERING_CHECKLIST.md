@@ -9,7 +9,7 @@
 
 ## October 28 force-driven trial
 
-An opt-in rigid-body trial and the first loaded wheel/line/tiller/rudder mechanism are implemented. The wheel stays by explicit user preference; the target is a historically inspired future sailing trainer. See [physics foundation](docs/physics-foundation.md) for equations, input adapters, native/browser evidence and provisional parameters. Do not mark full hydrodynamics, rope/cloth dynamics or VR training complete.
+An opt-in rigid-body trial and the first loaded wheel/line/tiller/rudder mechanism are implemented. The wheel stays by explicit user preference. The first-person trainer now provides deck walking and gaze-relative movement as the test bed for reusable ship mechanics. Hull hydrostatics and steering transmission run independently of APEX's scene; [reuse contracts](docs/reusable-ship-mechanics.md) describe integration and remaining packaging work. See [physics foundation](docs/physics-foundation.md) for input adapters, native/browser evidence and provisional parameters. Do not mark full hydrodynamics, rope/cloth dynamics or VR training complete.
 
 ## October 28 construction evidence
 

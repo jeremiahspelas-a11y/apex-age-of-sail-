@@ -1,23 +1,26 @@
 extends RefCounted
 ## Displaced-volume quadrature of the refitted hull, independent of scripted motion.
 ## Body-fixed columns clip against a sampled heightfield; no CFD or slamming model.
-const Refit = preload("res://scripts/ship_refit.gd")
 const DENSITY := 1025.0
 const GRAVITY := 9.8
 var columns: Array[Dictionary] = []
-var bounds := AABB(Vector3(-3.45,-2.2,-13),Vector3(6.9,3.11,26.2))
+var bounds := AABB()
 var full_volume := 0.0
 var water_rows := 7
 var damping_rates := Vector3(0.90,1.40,0.08) # empirical 1/s, transverse/heave/longitudinal
 
-func build_ship(nx: int = 20,nz: int = 40) -> void:
+## section_at(z) returns a closed, convex cross-section as body-local Vector3 points.
+## The solver has no scene, ocean singleton, input or APEX asset dependency.
+func build_from_sections(section_at: Callable,hull_bounds: AABB,nx: int = 20,nz: int = 40) -> void:
+ assert(section_at.is_valid() and nx > 0 and nz > 0 and hull_bounds.size.x > 0.0 and hull_bounds.size.z > 0.0)
+ bounds = hull_bounds
  columns.clear()
  full_volume = 0.0
  var dx := bounds.size.x/float(nx)
  var dz := bounds.size.z/float(nz)
  for iz in nz:
   var z := bounds.position.z+(float(iz)+0.5)*dz
-  var profile := Refit.hull_profile(z)
+  var profile: PackedVector3Array = section_at.call(z)
   for ix in nx:
    var x := bounds.position.x+(float(ix)+0.5)*dx
    var intersections: Array[float] = []
@@ -32,6 +35,7 @@ func build_ship(nx: int = 20,nz: int = 40) -> void:
    _add_column(x,z,intersections[0],intersections[-1],dx*dz)
 
 func build_box(size: Vector3,nx: int = 20,nz: int = 40) -> void:
+ assert(nx > 0 and nz > 0 and size.x > 0.0 and size.y > 0.0 and size.z > 0.0)
  bounds = AABB(-size*0.5,size)
  columns.clear()
  full_volume = 0.0

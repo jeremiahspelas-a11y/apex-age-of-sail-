@@ -76,6 +76,12 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/force_trial_test.gd 2>&1 | tee force-trial-test.log
           if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" force-trial-test.log; then exit 1; fi
           grep -q "APEX FORCE TRIAL TEST PASS" force-trial-test.log
+      - name: Verify first-person deck trainer
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/trainer_test.gd 2>&1 | tee trainer-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" trainer-test.log; then exit 1; fi
+          grep -q "APEX TRAINER TEST PASS" trainer-test.log
       - name: Browser graphics smoke test and screenshots
         run: |
           set -euo pipefail
