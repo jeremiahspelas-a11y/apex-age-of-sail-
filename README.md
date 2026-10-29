@@ -20,6 +20,10 @@ base64 --decode assets/apex_pinnace_v9.glb.xz.base64 | xz --decompress > assets/
 
 Open `project.godot` in Godot 4.7.2 and run `physics_trial.tscn`. For the Web export, install the matching export templates and use the `Web` preset. GitHub Actions imports, exports, runs native regressions, and checks the rendered browser build. Pull requests produce review artifacts; main's workflow handles Pages deployment.
 
+## Realism prerequisites
+
+[The canonical simulation checklist](SIMULATION_REALISM_REQUIREMENTS.md) defines the structural, rigging, weather/water, cloth, VR, crew, combat and training evidence still required. The present prototype does not satisfy whole-ship realism or validated VR training.
+
 ## Reuse the mechanics
 
 The scene-independent `scripts/hull_hydrostatics.gd` accepts hull sections, body state and a water-height callback; `scripts/steering_transmission.gd` accepts helm effort and water hinge torque. They return forces/moments or steering state without depending on APEX's camera, input or assets. [Integration examples and limits](docs/reusable-ship-mechanics.md) describe the contracts. The full vessel is not yet packaged as a drop-in asset.
