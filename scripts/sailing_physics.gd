@@ -4,7 +4,7 @@ const Hydrostatics = preload("res://scripts/hull_hydrostatics.gd")
 const RigPressure = preload("res://scripts/rig_pressure_load.gd")
 const Refit = preload("res://scripts/ship_refit.gd")
 @export var force_trial := false
-@export var trial_dry_mass_kg := 80000.0 # provisional mass budget, not a historical measurement
+@export var trial_dry_mass_kg := 80000.0 # rigid assembly excluding the separately integrated fore canvas; provisional
 @export var trial_center_of_mass := Vector3(0,-0.60,0)
 var hydro: RefCounted
 var rig_pressure: RefCounted
@@ -177,11 +177,13 @@ func set_force_trial(enabled: bool) -> void:
  axis_lock_angular_z = not enabled
  if enabled:
   get_node("Mechanisms").reset_braces()
+  get_node("Mechanisms").set_cloth_active(true)
   linear_damp = 0.0
   angular_damp = 0.0
   _last_trial_mass = -1.0
   _update_trial_mass()
  else:
+  get_node("Mechanisms").set_cloth_active(false)
   mass = water_density*hull_displacement_m3
   inertia = Vector3.ZERO
   center_of_mass = Vector3(0,-1.2,0)
@@ -216,17 +218,19 @@ func _update_trial_mass() -> void:
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
  if not force_trial or hydro == null: return
  trial_ticks += 1
+ var reset_cloth := _trial_requested
  if _trial_requested:
   var initial := state.transform
   initial.basis = Basis(Vector3.UP,rotation.y)
-  initial.origin.y = hydro.equilibrium_height(mass,center_of_mass)+_height(initial.origin.x,initial.origin.z)
+  initial.origin.y = hydro.equilibrium_height(mass+get_node("Mechanisms").cloth.canvas_mass,center_of_mass)+_height(initial.origin.x,initial.origin.z)
   state.transform = initial
   state.linear_velocity = Vector3.ZERO
   state.angular_velocity = Vector3.ZERO
   _trial_requested = false
  var flow_at := Callable(ocean,"get_velocity") if ocean!=null and ocean.has_method("get_velocity") else Callable()
  hydro_report = hydro.evaluate(state.transform,Callable(self,"_height"),center_of_mass,state.linear_velocity,state.angular_velocity,flow_at)
- rig_report = rig_pressure.evaluate(state.transform*center_of_mass,wind_world,state.linear_velocity,state.angular_velocity,reef_fraction,state.transform)
+ var cloth_load: Dictionary = get_node("Mechanisms").step_cloth(state.step,state.transform,wind_world,reef_fraction,state.transform*center_of_mass,reset_cloth)
+ rig_report = rig_pressure.evaluate(state.transform*center_of_mass,wind_world,state.linear_velocity,state.angular_velocity,reef_fraction,state.transform,cloth_load)
  state.apply_central_force(hydro_report.buoyancy+hydro_report.drag+rig_report.force)
  state.apply_torque(hydro_report.buoyancy_torque+hydro_report.drag_torque+rig_report.torque)
  # A local-flow pressure approximation acts on the actual rudder angle, never raw helm input.
@@ -249,7 +253,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
   print("APEX FORCE SAMPLE ",JSON.stringify(force_trial_report()))
 
 func force_trial_report() -> Dictionary:
- return {"mass_kg":mass,"submerged_m3":hydro_report.get("volume",0.0),"buoyancy_n":hydro_report.get("buoyancy",Vector3.ZERO).y,"position":[global_position.x,global_position.y,global_position.z],"speed_mps":linear_velocity.length(),"brace":get_node("Mechanisms").brace_report(),"finite":global_position.is_finite() and linear_velocity.is_finite()}
+ return {"mass_kg":mass,"submerged_m3":hydro_report.get("volume",0.0),"buoyancy_n":hydro_report.get("buoyancy",Vector3.ZERO).y,"position":[global_position.x,global_position.y,global_position.z],"speed_mps":linear_velocity.length(),"brace":get_node("Mechanisms").brace_report(),"cloth":get_node("Mechanisms").cloth_report(),"finite":global_position.is_finite() and linear_velocity.is_finite()}
 
 func rudder_water_force(local_velocity: Vector3,angle: float) -> Vector3:
  var planar := Vector3(local_velocity.x,0,local_velocity.z)

@@ -44,6 +44,8 @@ var brace_ui: GridContainer
 var brace_status: Label
 var brace_select: Button
 var selected_brace := 0
+var clew_selected := false
+var rig_control_toggle: Button
 var session: Node
 var coop_panel: PanelContainer
 var coop_status: Label
@@ -77,7 +79,7 @@ func _ready() -> void:
  normal_ui = root
  var trainer_hint := Label.new()
  trainer_hint.position = Vector2(16,165)
- trainer_hint.text = "DECK VIEW\nArrows: walk | Right-drag: look\nA/D: helm | W/S: reef | Q/E: sheets\nF: fly inspection | P: hide HUD"
+ trainer_hint.text = "DECK VIEW\nArrows: walk | Right-drag: look\nA/D: helm | W/S: reef | Q/E: other yards\nF: fly inspection | P: hide HUD"
  trainer_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
  root.add_child(trainer_hint)
  _build_fly_controls(canvas)
@@ -95,7 +97,7 @@ func _ready() -> void:
  sailing.offset_top = 12.0
  sailing.mouse_filter = Control.MOUSE_FILTER_PASS
  root.add_child(sailing)
- var actions := [["Port","port"],["Starboard","starboard"],["Reef +","raise"],["Reef -","lower"],["Sheet -","sheet_l"],["Sheet +","sheet_r"],["Door","door"],["Hatch","hatch"]]
+ var actions := [["Port","port"],["Starboard","starboard"],["Reef +","raise"],["Reef -","lower"],["Yard -","sheet_l"],["Yard +","sheet_r"],["Door","door"],["Hatch","hatch"]]
  for action in actions:
   var btn := Button.new()
   btn.text = action[0]
@@ -310,43 +312,74 @@ func _build_brace_controls(root: Control) -> void:
  brace_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
  brace_status.visible = boat.force_trial
  root.add_child(brace_status)
+ rig_control_toggle = Button.new()
+ rig_control_toggle.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+ rig_control_toggle.offset_left = -356.0
+ rig_control_toggle.offset_right = -8.0
+ rig_control_toggle.offset_top = 398.0
+ rig_control_toggle.custom_minimum_size = Vector2(348,38)
+ rig_control_toggle.visible = boat.force_trial
+ rig_control_toggle.text = "CONTROL: YARD BRACES"
+ rig_control_toggle.pressed.connect(_toggle_rig_control)
+ root.add_child(rig_control_toggle)
+
+func _controlled_line_rig() -> RefCounted:
+ return $Boat/Mechanisms.cloth if clew_selected else $Boat/Mechanisms.brace
+
+func _toggle_rig_control() -> void:
+ _brace_stop()
+ clew_selected = not clew_selected
+ rig_control_toggle.text = "CONTROL: CLEW SHEETS" if clew_selected else "CONTROL: YARD BRACES"
+ _update_rig_selection()
+ print("APEX RIG CIRCUIT ","CLEW SHEETS" if clew_selected else "YARD BRACES")
+
+func _update_rig_selection() -> void:
+ brace_select.text = ("PORT" if selected_brace==0 else "STBD")+(" SHEET" if clew_selected else " BRACE")
 
 func _brace_pull(direction: float) -> void:
  if session!=null and session.active:
-  session.send_action("brace_pull",direction,selected_brace)
+  session.send_action("clew_pull" if clew_selected else "brace_pull",direction,selected_brace)
   return
- if boat.force_trial: $Boat/Mechanisms.brace.set_hand(selected_brace,direction)
+ if boat.force_trial: _controlled_line_rig().set_hand(selected_brace,direction)
 
 func _brace_stop() -> void:
  if session!=null and session.active:
-  session.send_action("brace_stop",0.0,0)
-  session.send_action("brace_stop",0.0,1)
+  for prefix: String in ["brace_","clew_"]:
+   session.send_action(prefix+"stop",0.0,0)
+   session.send_action(prefix+"stop",0.0,1)
   return
  $Boat/Mechanisms.brace.stop_hands()
+ $Boat/Mechanisms.cloth.stop_hands()
 
 func _brace_action(action: String) -> void:
  if action!="PORT BRACE" and session!=null and session.active:
-  var verb: String = {"BELAY":"brace_belay","FREE":"brace_free","CUT BRACE":"brace_cut"}.get(action,"")
-  if not verb.is_empty(): session.send_action(verb,0.0,selected_brace)
+  var verb: String = {"BELAY":"belay","FREE":"free","CUT BRACE":"cut"}.get(action,"")
+  if not verb.is_empty(): session.send_action(("clew_" if clew_selected else "brace_")+verb,0.0,selected_brace)
   return
- var rig: RefCounted = $Boat/Mechanisms.brace
+ var rig := _controlled_line_rig()
  if not boat.force_trial: return
  match action:
   "PORT BRACE":
    _brace_stop()
    selected_brace = 1-selected_brace
-   brace_select.text = "PORT BRACE" if selected_brace==0 else "STBD BRACE"
+   _update_rig_selection()
   "BELAY": rig.belay(selected_brace)
   "FREE": rig.release(selected_brace)
   "CUT BRACE": rig.cut(selected_brace)
- print("APEX BRACE CONTROL ",JSON.stringify({"action":action,"selected":selected_brace,"state":$Boat/Mechanisms.brace_report()}))
+ print("APEX BRACE CONTROL ",JSON.stringify({"action":action,"selected":selected_brace,"clew":clew_selected,"state":$Boat/Mechanisms.brace_report(),"sheets":$Boat/Mechanisms.cloth.lines}))
 
 func _update_brace_status() -> void:
- var rig: RefCounted = $Boat/Mechanisms.brace
+ var rig := _controlled_line_rig()
  if not boat.force_trial or rig.lines.size()!=2: return
  var line: Dictionary = rig.lines[selected_brace]
  var mode: String = ["BELAYED","IN HAND","RUNNING FREE","CUT"][int(line.mode)]
- brace_status.text = "FORE LOWER YARD %.1f deg | %.0f / %.0f N\n%s | %.2f m available\nHaul one side; ease its opposing brace."%[rad_to_deg(rig.angle),rig.lines[0].tension,rig.lines[1].tension,mode,line.length]
+ if clew_selected:
+  brace_status.text = "FORE CLEWS | %.0f / %.0f N\n%s | %.2f m available\nHaul / ease to shape the lower fore sail."%[rig.lines[0].tension,rig.lines[1].tension,mode,line.length]
+ else:
+  brace_status.text = "FORE LOWER YARD %.1f deg | %.0f / %.0f N\n%s | %.2f m available\nHaul one side; ease its opposing brace."%[rad_to_deg(rig.angle),rig.lines[0].tension,rig.lines[1].tension,mode,line.length]
+ for button: Node in brace_ui.get_children():
+  if button is Button and button.text.begins_with("CUT"):
+   button.text = "CUT SHEET" if clew_selected else "CUT BRACE"
 
 func _build_fly_controls(canvas: CanvasLayer) -> void:
  var toggle := Button.new()
@@ -648,6 +681,7 @@ func _process(delta: float) -> void:
  trial_button.text = "SHARED PHYSICS" if session.active else ("RETURN TO PROTOTYPE" if boat.force_trial else "PHYSICS TRIAL")
  brace_ui.visible = boat.force_trial
  brace_status.visible = boat.force_trial
+ rig_control_toggle.visible = boat.force_trial
  notice_timer = maxf(0.0,notice_timer-delta)
  if notice_timer<=0 and session.active and session.connected:
   var owner := "unassigned"
@@ -663,7 +697,7 @@ func _process(delta: float) -> void:
  var rope_state: String = "CONNECTED" if helm.steering_rope_intact else "CUT"
  status.text = ("FORCES |" if boat.force_trial else "PROTOTYPE |") + " %.1f m/s | RUDDER %.0f deg | LINK %s | FLOOD %.1f t" % [displayed_speed,rad_to_deg(helm.actual_rudder_angle),rope_state,tonnes]
  if boat.force_trial and not boat.hydro_report.is_empty():
-  status.text += "\nBUOYANCY %.0f kN | WIND %.1f kN | LINES %.0f / %.0f N"%[boat.hydro_report.buoyancy.length()/1000.0,boat.rig_report.force.length()/1000.0,helm.port_line_tension,helm.starboard_line_tension]
+  status.text += "\nBUOYANCY %.0f kN | RIG %.1f kN | LINES %.0f / %.0f N"%[boat.hydro_report.buoyancy.length()/1000.0,boat.rig_report.force.length()/1000.0,helm.port_line_tension,helm.starboard_line_tension]
 func _walk_input(key: String) -> void:
  if key == "STOP":
   active_walk_buttons.clear()
@@ -692,3 +726,4 @@ func _toggle_force_trial() -> void:
  trial_button.text = "RETURN TO PROTOTYPE" if boat.force_trial else "PHYSICS TRIAL"
  brace_ui.visible = boat.force_trial
  brace_status.visible = boat.force_trial
+ rig_control_toggle.visible = boat.force_trial

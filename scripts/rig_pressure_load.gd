@@ -1,6 +1,6 @@
 extends RefCounted
 ## First force-transfer approximation: intact fixed rig -> hull reaction at each sail CP.
-## Cloth/rope dynamics are not implemented by this pressure-only model.
+## Seven pressure-only sails and optional lower-fore membrane support reaction.
 const AIR_DENSITY := 1.225
 const PressureSurface = preload("res://scripts/sail_pressure_surface.gd")
 var vessel: Node3D
@@ -20,7 +20,7 @@ func bind(rig: Node) -> void:
    surface.build(sail.mesh.get_faces())
    panel["surface"] = surface
   panels.append(panel)
-func evaluate(com: Vector3,wind: Vector3,linear: Vector3,angular: Vector3,reef: float,physics_pose: Variant = null) -> Dictionary:
+func evaluate(com: Vector3,wind: Vector3,linear: Vector3,angular: Vector3,reef: float,physics_pose: Variant = null,cloth_load: Dictionary = {}) -> Dictionary:
  var body_pose: Transform3D = vessel.global_transform if physics_pose == null else physics_pose
  var force := Vector3.ZERO
  var torque := Vector3.ZERO
@@ -29,6 +29,12 @@ func evaluate(com: Vector3,wind: Vector3,linear: Vector3,angular: Vector3,reef: 
  for panel: Dictionary in panels:
   var mesh: MeshInstance3D = panel.mesh
   var local := vessel.global_transform.affine_inverse()*mesh.global_transform
+  if panel.has("surface") and not cloth_load.is_empty():
+   force += cloth_load.force
+   torque += cloth_load.torque
+   brace_torque = cloth_load.top_torque.dot(body_pose.basis.y.normalized())
+   last_sail_loads.append({"name":mesh.name,"force":cloth_load.wind_force,"support_force":cloth_load.force,"area_m2":mechanisms.cloth.area,"hinge_torque_nm":brace_torque})
+   continue
   if panel.has("surface"):
    var pivot: Node3D = mesh.get_parent()
    var hinge: Vector3 = body_pose*(vessel.global_transform.affine_inverse()*pivot.global_position)

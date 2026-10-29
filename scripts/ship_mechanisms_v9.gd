@@ -6,6 +6,11 @@ const SteeringTransmission = preload("res://scripts/steering_transmission.gd")
 const YardBrace = preload("res://scripts/yard_brace.gd")
 var helm := SteeringTransmission.new()
 var brace := YardBrace.new()
+const SailMembrane = preload("res://scripts/sail_membrane.gd")
+var cloth := SailMembrane.new()
+var clew_lines: Array[MeshInstance3D] = []
+var resting_sail_mesh: ArrayMesh
+var cloth_active := false
 var loaded_yard: Node3D
 var loaded_sail: MeshInstance3D
 var brace_lines: Array[MeshInstance3D] = []
@@ -62,6 +67,7 @@ func _ready() -> void:
  _bind_steering_route()
  _bind_rig(imported)
  _bind_braces()
+ _bind_clew_sheets()
  _bind_openings(imported)
  print("APEX original rig controls: rudder=",original_rudder != null," wheel=",original_wheel != null)
  print("APEX original sail-yard pairs found: ",rig_yards.size())
@@ -197,6 +203,7 @@ func _process(delta: float) -> void:
   _line_clock = 0.0
   _update_steering_route()
   _update_braces()
+  _update_clew_sheets()
  var trim := clampf(float(vessel.get("sheet_angle")),-1.5,1.5)
  for yard in yards:
   if vessel.force_trial and yard==loaded_yard: continue
@@ -438,3 +445,94 @@ func _update_steering_route() -> void:
   st.generate_normals()
   st.index()
   line.mesh = st.commit()
+
+func _bind_clew_sheets() -> void:
+ if loaded_sail==null: return
+ resting_sail_mesh = loaded_sail.mesh
+ var leads: Array[Vector3] = []
+ var pins: Array[Vector3] = []
+ var hemp := StandardMaterial3D.new()
+ hemp.albedo_color = Color(0.24,0.19,0.11)
+ hemp.roughness = 0.96
+ var wood := StandardMaterial3D.new()
+ wood.albedo_color = Color(0.27,0.14,0.06)
+ for side in [-1.0,1.0]:
+  var lead := Vector3(side*2.65,Refit.MAIN_TOP+0.85,-3.2)
+  var pin := Vector3(side*2.4,Refit.MAIN_TOP+0.55,-2.9)
+  leads.append(lead)
+  pins.append(pin)
+  var line := MeshInstance3D.new()
+  line.name = "ForeClewSheetRope"
+  line.material_override = hemp
+  add_child(line)
+  clew_lines.append(line)
+  var block := MeshInstance3D.new()
+  block.name = "ForeSheetBulwarkBlock"
+  var box := BoxMesh.new()
+  box.size = Vector3(0.18,0.25,0.20)
+  block.mesh = box
+  block.material_override = wood
+  block.position = lead
+  add_child(block)
+  var rack := MeshInstance3D.new()
+  rack.name = "ForeSheetPinAndRack"
+  var beam := BoxMesh.new()
+  beam.size = Vector3(0.12,0.65,0.18)
+  rack.mesh = beam
+  rack.material_override = wood
+  rack.position = pin-Vector3.UP*0.2
+  add_child(rack)
+ cloth.configure(loaded_sail.get_meta("original_sail_bounds"),loaded_yard.position.z,loaded_sail.global_transform,leads,pins,vessel.global_transform)
+
+func set_cloth_active(enabled: bool) -> void:
+ cloth_active = enabled
+ if loaded_sail==null: return
+ if not enabled: loaded_sail.mesh = resting_sail_mesh
+ # A separate material keeps physical vertices aligned with the visible sail.
+ var material := loaded_sail.material_override as ShaderMaterial
+ if material!=null:
+  if not loaded_sail.has_meta("dynamic_canvas_material"):
+   material = material.duplicate() as ShaderMaterial
+   loaded_sail.material_override = material
+   loaded_sail.set_meta("dynamic_canvas_material",true)
+   var wetness := vessel.get_node_or_null("Wetness")
+   if wetness!=null: wetness.surfaces.append(material)
+  material.set_shader_parameter("cloth_flutter",not enabled)
+
+func step_cloth(delta: float,body_pose: Transform3D,wind: Vector3,reef: float,com: Vector3,reset_state: bool) -> Dictionary:
+ var local := vessel.global_transform.affine_inverse()*loaded_sail.global_transform
+ var sail_pose := body_pose*local
+ var hinge: Vector3 = body_pose*loaded_yard.position
+ if reset_state:
+  cloth.reset(sail_pose)
+  cloth.fixture_transform = body_pose
+ return cloth.step(delta,sail_pose,wind,reef,com,hinge,body_pose)
+
+func _update_clew_sheets() -> void:
+ if loaded_sail==null: return
+ if cloth_active and not cloth.points.is_empty():
+  loaded_sail.mesh = cloth.build_mesh(loaded_sail.global_transform)
+ for i in clew_lines.size():
+  var line: Dictionary = cloth.lines[i]
+  clew_lines[i].visible = cloth_active and line.mode!=SailMembrane.Hold.CUT
+  if not clew_lines[i].visible: continue
+  var start := vessel.to_local(cloth.points[line.node])
+  var lead: Vector3 = line.lead
+  var slack := maxf(0,line.length-line.tail-start.distance_to(lead))
+  var sag := minf(1.0,sqrt(slack)*0.5)
+  var st := SurfaceTool.new()
+  st.begin(Mesh.PRIMITIVE_TRIANGLES)
+  for segment in 8:
+   var t0 := float(segment)/8.0
+   var t1 := float(segment+1)/8.0
+   Refit._tube(st,start.lerp(lead,t0)-Vector3.UP*sag*sin(t0*PI),start.lerp(lead,t1)-Vector3.UP*sag*sin(t1*PI),0.018)
+  Refit._tube(st,lead,line.belay,0.018)
+  st.generate_normals()
+  clew_lines[i].mesh = st.commit()
+
+func cloth_report() -> Dictionary:
+ var local_clews: Array = []
+ for line: Dictionary in cloth.lines:
+  var point := vessel.to_local(cloth.points[line.node])
+  local_clews.append([point.x,point.y,point.z])
+ return {"mass_kg":cloth.canvas_mass,"area_m2":cloth.area,"nodes":cloth.points.size(),"clews":local_clews,"lengths_m":[cloth.lines[0].length,cloth.lines[1].length],"tensions_n":[cloth.lines[0].tension,cloth.lines[1].tension]}

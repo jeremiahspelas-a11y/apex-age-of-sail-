@@ -88,6 +88,12 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/yard_brace_test.gd 2>&1 | tee yard-brace-test.log
           if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" yard-brace-test.log; then exit 1; fi
           grep -q "APEX YARD BRACE TEST PASS" yard-brace-test.log
+      - name: Verify deforming fore sail and clew-sheet load transfer
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/sail_membrane_test.gd 2>&1 | tee sail-membrane-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" sail-membrane-test.log; then exit 1; fi
+          grep -q "APEX SAIL MEMBRANE TEST PASS" sail-membrane-test.log
       - name: Verify shared sea and procedural weather
         run: |
           set -euo pipefail
@@ -207,6 +213,9 @@ jobs:
       - name: Verify two browser clients share the host ship
         timeout-minutes: 6
         run: node tests/browser_coop.cjs
+      - name: Verify browser clew-sheet controls and deformed sail
+        timeout-minutes: 5
+        run: node tests/browser_cloth.cjs
       - name: Publish visible QA evidence with the game
         if: success()
         run: |

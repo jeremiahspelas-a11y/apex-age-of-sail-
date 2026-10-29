@@ -12,6 +12,7 @@ var supported := false
 var comfort_horizon := true
 var controllers: Dictionary = {}
 var grips: Dictionary = {}
+var clew_grips: Dictionary = {}
 var command_clock := 0.0
 func setup(root: Node3D) -> void:
  game = root
@@ -51,7 +52,7 @@ func _started() -> void:
  game.player.read_keyboard = false
  game.hud_layer.visible = false
  var hint := Label3D.new()
- hint.text = "Grip: wheel / brace tail\nTrigger at pin: belay\nThumbstick: walk"
+ hint.text = "Grip: wheel / rope tail\nTrigger at pin: belay\nThumbstick: walk"
  hint.font_size = 22
  hint.pixel_size = 0.0008
  hint.position = Vector3(0,-0.2,-0.7)
@@ -104,6 +105,11 @@ func _grab(id: int) -> void:
   if input.grab_brace(i,game.boat.to_local(hand.global_position),pin):
    grips[id] = input
    return
+ for i in rig.cloth.lines.size():
+  if input.grab_brace(i,game.boat.to_local(hand.global_position),rig.cloth.lines[i].belay):
+   grips[id] = input
+   clew_grips[id] = true
+   return
 func _dispatch(action: String,value: float = 0.0,index: int = 0) -> void:
  if game.session.active:
   game.session.send_action(action,value,index)
@@ -114,13 +120,17 @@ func _dispatch(action: String,value: float = 0.0,index: int = 0) -> void:
   "brace_pull": rig.brace.set_hand(index,value)
   "brace_free": rig.brace.release(index)
   "brace_belay": rig.brace.belay(index)
+  "clew_pull": rig.cloth.set_hand(index,value)
+  "clew_free": rig.cloth.release(index)
+  "clew_belay": rig.cloth.belay(index)
 func _release(id: int) -> void:
  if not grips.has(id): return
  var input: RefCounted = grips[id]
  if input.wheel_held: _dispatch("helm_torque",0.0)
- if input.brace_held>=0: _dispatch("brace_free",0.0,input.brace_held)
+ if input.brace_held>=0: _dispatch("clew_free" if clew_grips.has(id) else "brace_free",0.0,input.brace_held)
  input.release()
  grips.erase(id)
+ clew_grips.erase(id)
 func _release_all() -> void:
  for id: int in grips.keys(): _release(id)
 func _belay_near_pin(id: int) -> void:
@@ -133,6 +143,12 @@ func _belay_near_pin(id: int) -> void:
    # Belay before clearing the grip so a later squeeze release cannot free it.
    _release(id)
    _dispatch("brace_belay",0.0,i)
+   return
+ for i in rig.cloth.lines.size():
+  if p.distance_to(rig.cloth.lines[i].belay)<0.45:
+   _release(id)
+   _dispatch("clew_belay",0.0,i)
+   return
 func _physics_process(delta: float) -> void:
  if not active: return
  _place_origin()
@@ -161,11 +177,13 @@ func _physics_process(delta: float) -> void:
    torque += input.wheel_torque(p-rig.wheel.position,rig.helm.wheel_angle,rig.helm.wheel_velocity)
   elif input.brace_held>=0:
    var i: int = input.brace_held
-   if p.distance_to(rig.loaded_yard.position+rig.brace.lines[i].belay)>1.6:
+   var line_rig: RefCounted = rig.cloth if clew_grips.has(id) else rig.brace
+   var pin: Vector3 = line_rig.lines[i].belay+(Vector3.ZERO if clew_grips.has(id) else rig.loaded_yard.position)
+   if p.distance_to(pin)>1.6:
     _release(id)
     continue
-   var axis: Vector3 = rig.brace.lines[i].lead-rig.brace.lines[i].belay
-   _dispatch("brace_pull",input.brace_pull(p,axis,dt),i)
+   var axis: Vector3 = line_rig.lines[i].lead-line_rig.lines[i].belay
+   _dispatch("clew_pull" if clew_grips.has(id) else "brace_pull",input.brace_pull(p,axis,dt),i)
  if wheel_gripped: _dispatch("helm_torque",clampf(torque,-129.6,129.6))
  game.player.motion_input = Vector2.ZERO
  for hand: XRController3D in controllers.values():

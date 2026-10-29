@@ -27,6 +27,12 @@ func run() -> void:
  game.get_node("Weather").set_process(false)
  check(not game.vr.active,"Desktop startup must remain non-XR")
  check(not game.vr.enter(),"Headless unsupported VR must fail without disturbing desktop mode")
+ game.vr._dispatch("clew_pull",-1.0,0)
+ check(game.boat.get_node("Mechanisms").cloth.lines[0].mode==1,"VR rope adapter must address clew sheets")
+ game.vr._dispatch("clew_belay",0.0,0)
+ check(game.boat.get_node("Mechanisms").cloth.lines[0].mode==0,"VR belay adapter must secure the clew sheet")
+ game.vr._dispatch("clew_free",0.0,0)
+ check(game.boat.get_node("Mechanisms").cloth.lines[0].mode==2,"VR release adapter must free the clew sheet")
  game._toggle_coop_panel()
  await process_frame
  await process_frame

@@ -9,6 +9,7 @@ The first-person trainer is the integration scene for mechanics that can later b
 | `hull_hydrostatics.gd` | Hull sections/bounds, rigid pose, water heights, COM and velocities | Displaced volume, buoyancy and water resistance with moments | Godot math/RefCounted |
 | `steering_transmission.gd` | Geometry/configuration, fixed time step, helm effort or crew target, water hinge torque | Wheel/rudder angles and velocities, line tensions, angular accelerations | Godot math/RefCounted |
 | `yard_brace.gd` | Yard span, block/pin locations, fixed time step, wind hinge torque, hand/belay commands | Yard and tail state, tensions and balanced attachment reactions | Godot math/RefCounted |
+| `sail_membrane.gd` | Mesh/fixture geometry, moving poses, wind, COM and line commands | Deformed cloth, sheet tensions and support reactions from momentum balance | Godot math/RefCounted, optional ArrayMesh output |
 | `sail_pressure_surface.gd` | Triangle geometry, wind and rigid/relative hinge motion | Panel pressure resultant and moments about COM and hinge | Godot math/RefCounted |
 | `sea_spectrum.gd` | Seed, position, time and sea amplitude | Displacement, height, normal, compression and water velocity | Godot math/RefCounted |
 | `weather_field.gd` | Seed, position, time and optional scenario | Wind, gust/front effects, cloud/rain/visibility/pressure/temperature | Godot noise/RefCounted |
@@ -74,3 +75,7 @@ Default geometry has a 1.70 m tiller and two ideal blocks at ±1.10 m abeam of i
 3. Generalize vessel configuration and sail/rig adapters; provide a minimal sample scene independent of APEX's world and UI, with documented sockets and mass budget.
 4. Calibrate handling against reference data, add lessons and measurable maneuvers, and validate target hardware. Add tracked VR grip/input as an adapter to the same mechanics.
 5. Package a versioned ship resource with example integration, dependency/license inventory and stable interfaces. The repository currently contains the foundation, not that finished release.
+
+## Deforming sail and sheets
+
+The lower fore sail now integrates a standalone XPBD membrane and two unilateral sheets. [Configure/step/render/replication contract, mass accounting, controls and limits](sail-membrane-trial.md) explain how to substitute this circuit into another Godot vessel without double-counting pressure or canvas mass.

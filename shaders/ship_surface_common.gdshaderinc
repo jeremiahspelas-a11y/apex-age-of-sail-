@@ -3,6 +3,7 @@ uniform int surface_kind = 0; // timber, deck, hull, hemp, iron, canvas
 uniform int grain_axis = 2;
 uniform float wetness : hint_range(0.0,1.0) = 0.0;
 uniform float wind_strength : hint_range(0.0,1.0) = 0.5;
+uniform bool cloth_flutter = true;
 varying vec3 timber_position;
 float hash21(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float seam(float value, float width) {
@@ -11,7 +12,7 @@ float seam(float value, float width) {
 }
 void vertex() {
  timber_position = VERTEX;
- if (surface_kind == 5) {
+ if (surface_kind == 5 && cloth_flutter) {
   // Small leech flutter; the entire head stays pinned to the measured yard.
   VERTEX.z += sin(TIME*1.7+UV.x*11.0+UV.y*7.0)*0.025*wind_strength*UV.y*UV.y*sin(UV.x*3.14159265);
  }

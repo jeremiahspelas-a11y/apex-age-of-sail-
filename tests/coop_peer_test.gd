@@ -16,10 +16,17 @@ func run() -> void:
  var rig: Node3D = game.boat.get_node("Mechanisms")
  if mode=="server":
   check(session.host(19080)==OK,"WebSocket host must bind loopback test port")
+  # Transport/ownership fixture uses a light steady load. Overload slip is tested
+  # separately by the membrane suite; evolving gusts must not imply guaranteed haul.
+  var weather: Node = game.get_node("Weather")
+  weather.set_process(false)
+  weather.state.wind = Vector3(0,0,-3)
+  game.boat.wind_world = weather.state.wind
   for frame in 700: await physics_frame
   check(session.accepted>=3,"Host must accept remote helm and brace commands")
   check(session.rejected>=2,"Host must reject occupied stations and invalid commands")
   check(session.stations.is_empty(),"Disconnect must release station ownership")
+  check(rig.cloth.lines[0].mode!=1,"Disconnect must release hand-held sheets")
   print("COOP SERVER: accepted=",session.accepted," rejected=",session.rejected)
  else:
   var messages: Array[String] = []
@@ -52,6 +59,18 @@ func run() -> void:
    check(messages.any(func(m: String) -> bool: return "Station is held" in m),"Competing helm input must be denied")
    check(rig.brace.lines[0].mode==0,"Remote belaying must be reflected in authoritative state")
    check(session.latest.weather.has("state"),"Late-joining clients must receive current weather")
+   var initial_length: float = rig.cloth.lines[0].length
+   session.send_action("clew_pull",-1.0,0)
+   for frame in 60: await physics_frame
+   session.send_action("clew_belay",0.0,0)
+   for frame in 12: await physics_frame
+   for frame in 60:
+    if rig.cloth.lines[0].mode==0 and rig.cloth.lines[0].length<initial_length-0.05: break
+    await physics_frame
+   print("COOP CLEW RESULT: ",initial_length," -> ",rig.cloth.lines[0].length," mode=",rig.cloth.lines[0].mode)
+   check(rig.cloth.lines[0].mode==0 and rig.cloth.lines[0].length<initial_length-0.05,"Remote clew haul and belay must reach host and replicate back")
+   check(session.latest.cloth.points.size()==35 and rig.cloth.points.size()==35,"Authoritative deformed cloth must reach clients")
+   session.send_action("clew_pull",0.0,0) # disconnect must release a hand-held sheet
   check(game.boat.global_position.is_finite(),"Replicated vessel pose must remain finite")
   session.stop()
  if failures.is_empty(): print("APEX COOP PEER PASS: ",mode)

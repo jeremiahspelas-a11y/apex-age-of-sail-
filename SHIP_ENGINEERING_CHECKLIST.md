@@ -7,6 +7,10 @@
 - [ ] means absent, incomplete, or unverified. **Never mark complete from a design mockup, GitHub commit alone, or headless export.**
 - Each subsystem needs: dimensions/materials, coupling to neighboring systems, automated tests, rendered screenshots, Android performance tests.
 
+## October 29 membrane and clew-sheet trial
+
+The original lower fore sail now has a 35-node membrane, two unilateral sheets, bounded hand effort, loaded yard-head reactions and hull support forces from a momentum balance. Desktop/touch controls, authoritative co-op shape/line state and optional VR command adapters are integrated. [Model, tests and completion limits](docs/sail-membrane-trial.md) leave the other sails, full running rig, cloth contact, measured calibration and physical-device acceptance open.
+
 ## October 28 force-driven trial
 
 The shared environment/co-op pass adds a sixteen-component seeded sea with matching rendered/physical data, relative water flow, procedural weather/FX, an authoritative WebSocket session and an experimental WebXR control adapter. Local numerical, native multiprocess and two-browser checks passed; [full status and completion gates](docs/shared-sailing-simulation.md) explicitly leave physical-device/headset validation, public hosting and complete mechanical fidelity open.

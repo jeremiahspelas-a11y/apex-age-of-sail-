@@ -63,6 +63,7 @@ func join(url: String) -> Error:
 func _client_mode() -> void:
  game.boat.prepare_force_trial()
  game.boat.force_trial = true
+ game.boat.get_node("Mechanisms").set_cloth_active(true)
  game.boat.freeze = true
  game.boat.set_physics_process(false)
  game.boat.get_node("ShipIntegrity").set_physics_process(false)
@@ -142,6 +143,8 @@ func _release_stations(id: int) -> void:
   if station=="helm": rig.set_helm_torque(0.0)
   if station=="brace_port" and rig.brace.lines[0].mode==1: rig.brace.release(0)
   if station=="brace_starboard" and rig.brace.lines[1].mode==1: rig.brace.release(1)
+  if station=="clew_port" and rig.cloth.lines[0].mode==1: rig.cloth.release(0)
+  if station=="clew_starboard" and rig.cloth.lines[1].mode==1: rig.cloth.release(1)
   stations.erase(station)
 func _claim(id: int,station: String) -> bool:
  if stations.has(station) and int(stations[station])!=id: return false
@@ -181,6 +184,9 @@ func _apply_action(id: int,action: String,value: float,index: int) -> bool:
  elif action.begins_with("brace_"):
   if index not in [0,1]: return _deny(id,"Invalid brace")
   station = "brace_port" if index==0 else "brace_starboard"
+ elif action.begins_with("clew_"):
+  if index not in [0,1]: return _deny(id,"Invalid clew sheet")
+  station = "clew_port" if index==0 else "clew_starboard"
  elif action=="release_station":
   _release_stations(id)
   return true
@@ -189,10 +195,12 @@ func _apply_action(id: int,action: String,value: float,index: int) -> bool:
   return game.get_node("Weather").set_scenario(["Evolving","Calm","Breeze","Squall","Storm"][int(value)])
  elif action in ["breach","patch"] and id==1: station = "instructor"
  else: return _deny(id,"Unknown command")
- if action not in ["port","starboard","rope_cut","helm_torque","raise","lower","sheet_l","sheet_r","door","hatch","pump","breach","patch","brace_pull","brace_stop","brace_belay","brace_free","brace_cut"]:
+ if action not in ["port","starboard","rope_cut","helm_torque","raise","lower","sheet_l","sheet_r","door","hatch","pump","breach","patch","brace_pull","brace_stop","brace_belay","brace_free","brace_cut","clew_pull","clew_stop","clew_belay","clew_free","clew_cut"]:
   return _deny(id,"Unknown command")
- if action=="brace_stop":
-  if stations.get(station,0)==id: game.boat.get_node("Mechanisms").brace.lines[index].pull = 0.0
+ if action in ["brace_stop","clew_stop"]:
+  if stations.get(station,0)==id:
+   var line_rig: RefCounted = game.boat.get_node("Mechanisms").cloth if action=="clew_stop" else game.boat.get_node("Mechanisms").brace
+   line_rig.lines[index].pull = 0.0
   return true
  if not _claim(id,station): return _deny(id,"Station is held by another sailor")
  var rig: Node3D = game.boat.get_node("Mechanisms")
@@ -202,6 +210,10 @@ func _apply_action(id: int,action: String,value: float,index: int) -> bool:
   "brace_belay": rig.brace.belay(index)
   "brace_free": rig.brace.release(index)
   "brace_cut": rig.brace.cut(index)
+  "clew_pull": rig.cloth.set_hand(index,clampf(value,-1,1))
+  "clew_belay": rig.cloth.belay(index)
+  "clew_free": rig.cloth.release(index)
+  "clew_cut": rig.cloth.cut(index)
   _:
    if station=="helm": rig.use_button_helm()
    game._apply_command(action)
@@ -241,6 +253,8 @@ func _physics_process(delta: float) -> void:
   jump_queued = jump_queued or Input.is_action_just_pressed("ui_accept")
   Ocean.time += delta
   game.boat.global_transform = game.boat.global_transform.interpolate_with(target_pose,1.0-exp(-delta*18.0))
+  if latest.has("cloth"):
+   game.boat.get_node("Mechanisms").cloth.receive_snapshot(latest.cloth,game.boat.global_transform)
   _update_visuals()
   if send_clock>=0.05:
    send_clock = 0.0
@@ -256,11 +270,11 @@ func capture_world() -> Dictionary:
  var rig := boat.get_node("Mechanisms")
  var people := {1:boat.to_local(game.player.global_position)}
  for id: int in avatars.keys(): people[id] = boat.to_local(avatars[id].global_position)
- return {"protocol":1,"mass":boat.mass,"com":boat.center_of_mass,"inertia":boat.inertia,"tick":Engine.get_physics_frames(),"time":Ocean.time,"pose":boat.global_transform,"linear":boat.linear_velocity,"angular":boat.angular_velocity,"wind":boat.wind_world,"rudder_input":boat.rudder_input,"reef":boat.reef_fraction,"sheet":boat.sheet_angle,"wheel":rig.helm.wheel_angle,"rudder":rig.helm.rudder_angle,"steering_intact":rig.helm.connected,"steering_tensions":Vector2(rig.helm.port_line_tension,rig.helm.starboard_line_tension),"yard":rig.brace.angle,"yard_velocity":rig.brace.angular_velocity,"lines":rig.brace.lines.duplicate(true),"doors":rig.door_open,"hatches":rig.hatch_open,"compartments":boat.get_node("ShipIntegrity").compartments.duplicate(true),"weather":game.get_node("Weather").snapshot(),"people":people,"stations":stations.duplicate(),"rig_force":boat.rig_report.get("force",Vector3.ZERO),"buoyancy":boat.hydro_report.get("buoyancy",Vector3.ZERO)}
+ return {"protocol":2,"mass":boat.mass,"com":boat.center_of_mass,"inertia":boat.inertia,"tick":Engine.get_physics_frames(),"time":Ocean.time,"pose":boat.global_transform,"linear":boat.linear_velocity,"angular":boat.angular_velocity,"wind":boat.wind_world,"rudder_input":boat.rudder_input,"reef":boat.reef_fraction,"sheet":boat.sheet_angle,"wheel":rig.helm.wheel_angle,"rudder":rig.helm.rudder_angle,"steering_intact":rig.helm.connected,"steering_tensions":Vector2(rig.helm.port_line_tension,rig.helm.starboard_line_tension),"yard":rig.brace.angle,"yard_velocity":rig.brace.angular_velocity,"lines":rig.brace.lines.duplicate(true),"cloth":rig.cloth.snapshot(boat.global_transform),"doors":rig.door_open,"hatches":rig.hatch_open,"compartments":boat.get_node("ShipIntegrity").compartments.duplicate(true),"weather":game.get_node("Weather").snapshot(),"people":people,"stations":stations.duplicate(),"rig_force":boat.rig_report.get("force",Vector3.ZERO),"buoyancy":boat.hydro_report.get("buoyancy",Vector3.ZERO)}
 @rpc("authority","call_remote","reliable")
 func receive_world(data: Dictionary) -> void:
  if is_host: return
- if int(data.get("protocol",0))!=1:
+ if int(data.get("protocol",0))!=2:
   feedback.emit("Incompatible co-op version")
   stop()
   return
@@ -298,6 +312,7 @@ func receive_world(data: Dictionary) -> void:
  rig.brace.angle = data.yard
  rig.brace.angular_velocity = data.yard_velocity
  rig.brace.lines = data.lines
+ rig.cloth.receive_snapshot(data.cloth,boat.global_transform)
  if rig.loaded_yard!=null: rig.loaded_yard.rotation.y = data.yard
  rig.door_open = data.doors
  rig.hatch_open = data.hatches

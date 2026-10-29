@@ -1,5 +1,7 @@
 # Loaded lower-foreyard brace trial
 
+**Update, October 29:** the lower fore sail now uses a [deforming membrane and two clew sheets](sail-membrane-trial.md). The rigid triangle-pressure description below records the preceding brace milestone; the current force loop uses membrane top-edge reactions for this yard. Seven other sails remain pressure-only. The 250 kg·m² yard inertia is provisional and excludes the separately integrated membrane.
+
 One existing sail/yard assembly (`YardRig_1_3`, the lower foreyard in this model) now rotates under pressure, rope tension and inertia in PHYSICS TRIAL. It keeps its original mesh, span and mast socket. The other seven yards retain their earlier kinematic trim. This is a bounded mechanical training example, not a claim of complete running rigging or authenticated vessel dimensions.
 
 ## Operate it

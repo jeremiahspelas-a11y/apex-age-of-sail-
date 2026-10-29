@@ -1,6 +1,12 @@
 # APEX Active QA and Implementation Ledger
 
-Updated: 2026-10-28. This is the source of truth for what was *actually* verified.
+Updated: 2026-10-29. This is the source of truth for what was *actually* verified.
+
+## Coupled fore membrane and clew sheets — 2026-10-29
+- Added a reusable 35-node XPBD membrane on the original lower fore sail, with a yard-pinned head, deformed-triangle apparent-wind pressure and two unilateral sheets through fixed deck fittings. Loaded hand-held tails can slip, belayed lengths stay fixed, free tails run and cut sheets transmit no load. Only this sail is dynamic; seven remain pressure-only.
+- Replaced its previous rigid pressure force with support reaction from external loads minus cloth momentum gain; top-edge reactions load the braced yard. The provisional rigid mass excludes the separately integrated ~8.53 kg canvas. Dynamic-sail shader flutter is disabled so visible vertices match solved cloth. Protocol 2 replicates body-local shape and sheet state. Desktop/touch, exclusive co-op stations and optional VR command adapters address the new circuit.
+- Local native membrane/scene tests, all seven existing suites, three-process co-op including remote clew haul/belay and stalled receiver, and Web export passed. Browser sheet selector/haul/belay/free/cut passed without page/console errors; selected length changed 5.65 → 5.40 m. Rendered controls and intact ship were inspected. The prior head ba81ac9 passed GitHub CI run 40791111493; current-head CI must be checked separately.
+- [Operation, reuse contract, evidence and explicit limits](docs/sail-membrane-trial.md). Full running rig, tacks, cloth/spar/self contact, calibrated fabric/airflow/handling, complete lessons, physical Android/headset performance and full-ship packaging remain open.
 
 ## Shared sea, generative weather, co-op and optional XR — 2026-10-28
 - User expanded the target to full sailing simulation, optional VR, shared learning with Marty/additional crew, and procedural uneven seas with foam/weather logic. A similar-sized Duyfken comparison has ~20 historical sailors; two-human assisted practice is a game mode, not a historical minimum-crew claim.
