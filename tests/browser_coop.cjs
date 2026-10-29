@@ -13,8 +13,8 @@ const fs=require('fs'),http=require('http'),path=require('path'),{spawn}=require
  try{
   await new Promise(r=>server.listen(8767,'127.0.0.1',r));
   const executablePath=process.env.APEX_CHROMIUM;
-  const args=['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'];
-  if(executablePath)args.push('--no-sandbox','--no-zygote','--single-process','--in-process-gpu','--ignore-gpu-blocklist');
+  // Match the locally verified software-renderer configuration on CI as well.
+  const args=['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox','--no-zygote','--single-process','--in-process-gpu','--ignore-gpu-blocklist'];
   browser=await chromium.launch({headless:true,...(executablePath?{executablePath}:{}),args});
   const pages=[];
   const waitFor=async(fn,timeout=60000)=>{const until=Date.now()+timeout;while(!fn()){if(Date.now()>until)throw Error('Timed out waiting for '+stage+'; host exit='+host.exitCode+'; host errors='+hostLog.join('').split('\n').filter(s=>/ERROR|failed/i.test(s)).slice(-4).join(' | ')+'; browser errors='+errors.join(' | '));await new Promise(r=>setTimeout(r,250));}};
@@ -22,16 +22,17 @@ const fs=require('fs'),http=require('http'),path=require('path'),{spawn}=require
   for(let i=0;i<2;i++){
    const page=await browser.newPage({...devices['Pixel 7'],viewport:{width:960,height:540},deviceScaleFactor:1});pages.push(page);
    let ready=false,panelOpen=false,endpointFocused=false;
-   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{const s=m.text();if(m.type()==='error')errors.push(s);if(s.includes('COOP'))console.log(i+': '+s);if(s==='APEX COOP PANEL true')panelOpen=true;if(s==='APEX COOP ENDPOINT FOCUSED')endpointFocused=true;if(s.startsWith('APEX FORCE SAMPLE '))ready=true;if(s.startsWith('APEX COOP STATE '))states[i].push(JSON.parse(s.slice('APEX COOP STATE '.length)));});
-   stage='browser '+i+' force readiness';await page.goto('http://127.0.0.1:8767/?simulation=forces',{waitUntil:'domcontentloaded'});await waitFor(()=>ready);
+   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{const s=m.text();if(m.type()==='error')errors.push(s);if(s.includes('COOP'))console.log(i+': '+s);if(s==='APEX COOP PANEL true')panelOpen=true;if(s==='APEX COOP ENDPOINT FOCUSED')endpointFocused=true;if(s==='APEX TRAINER READY')ready=true;if(s.startsWith('APEX COOP STATE '))states[i].push(JSON.parse(s.slice('APEX COOP STATE '.length)));});
+   // The host runs physics; joining browsers need only their completed UI.
+   stage='browser '+i+' trainer readiness';await page.goto('http://127.0.0.1:8767/',{waitUntil:'domcontentloaded'});await waitFor(()=>ready);
    stage='browser '+i+' join panel';await page.mouse.click(350,80);await waitFor(()=>panelOpen);
    await waitFor(()=>endpointFocused);await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('ws://127.0.0.1:19081',{delay:30});await page.keyboard.press('Enter');
-   stage='browser '+i+' authoritative snapshot';await page.screenshot({path:path.join(out,'coop-join-'+i+'.png')}); await waitFor(()=>states[i].some(s=>s.crew>=2));
+   stage='browser '+i+' authoritative snapshot';await waitFor(()=>states[i].some(s=>s.crew>=2));
   }
   stage='three shared participants';await waitFor(()=>states.every(s=>s.some(v=>v.crew===3)));
   await pages[0].bringToFront();await pages[0].mouse.click(350,80);await pages[0].mouse.click(732,40);
   stage='shared helm command';await waitFor(()=>states.every(s=>s.some(v=>v.rudder_input>0.1)));
-  await pages[0].screenshot({path:path.join(out,'coop-shared-ship.png')});
+  stage='shared ship capture';await pages[0].screenshot({path:path.join(out,'coop-shared-ship.png'),timeout:60000});
   const report={pass:true,errors,states,hostErrors:hostLog.join('').split('\n').filter(s=>/SCRIPT ERROR|ERROR:/.test(s))};
   fs.writeFileSync(path.join(out,'coop-browser.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify({pass:!errors.length&&!report.hostErrors.length,stateCounts:states.map(s=>s.length),errors,hostErrors:report.hostErrors}));

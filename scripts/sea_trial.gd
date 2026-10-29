@@ -165,6 +165,7 @@ func _ready() -> void:
    session.host(int(argument.get_slice("=",1)))
    brace_ui.visible = true
    brace_status.visible = true
+ print("APEX TRAINER READY")
 func _build_session_controls(canvas: CanvasLayer,root: Control) -> void:
  var button := Button.new()
  coop_toggle = button

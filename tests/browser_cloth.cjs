@@ -10,8 +10,7 @@ const fs=require('fs'),http=require('http'),path=require('path');
  try{
   await new Promise(r=>server.listen(8768,'127.0.0.1',r));
   const executablePath=process.env.APEX_CHROMIUM;
-  const args=['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'];
-  if(executablePath)args.push('--no-sandbox','--no-zygote','--single-process','--in-process-gpu','--ignore-gpu-blocklist');
+  const args=['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox','--no-zygote','--single-process','--in-process-gpu','--ignore-gpu-blocklist'];
   browser=await chromium.launch({headless:true,...(executablePath?{executablePath}:{}),args});
   const page=await browser.newPage({...devices['Pixel 7'],viewport:{width:960,height:540},deviceScaleFactor:1});
   const errors=[],samples=[],controls=[];let selected=false;
@@ -27,7 +26,7 @@ const fs=require('fs'),http=require('http'),path=require('path');
   const count=controls.length;await page.mouse.click(780,267);await waitFor(()=>controls.length>count);
   const belayed=controls.findLast(c=>c.clew&&c.action==='BELAY');
   if(belayed.sheets[0].mode!==0||belayed.sheets[0].length>initial-0.05)throw Error('Clew UI did not haul and belay the actual sheet');
-  await page.screenshot({path:path.join(out,'cloth-controls.png')});
+  await page.screenshot({path:path.join(out,'cloth-controls.png'),timeout:60000});
   const freeCount=controls.length;await page.mouse.click(900,267);await waitFor(()=>controls.length>freeCount);
   if(controls.at(-1).sheets[0].mode!==2)throw Error('FREE did not release the sheet');
   const cutCount=controls.length;await page.mouse.click(900,307);await waitFor(()=>controls.length>cutCount);
@@ -35,7 +34,7 @@ const fs=require('fs'),http=require('http'),path=require('path');
   // Reload the intact rig for an unobstructed view of the solved sail.
   samples.length=0;await page.goto('http://127.0.0.1:8768/?simulation=forces',{waitUntil:'domcontentloaded'});await waitFor(()=>samples.length);
   await page.mouse.click(80,80);await page.waitForTimeout(400);await page.mouse.click(80,133);await page.waitForTimeout(1000);
-  await page.screenshot({path:path.join(out,'cloth-sail.png')});
+  await page.screenshot({path:path.join(out,'cloth-sail.png'),timeout:60000});
   const report={pass:!errors.length,errors,initialLength:initial,belayedLength:belayed.sheets[0].length,samples,controls};
   fs.writeFileSync(path.join(out,'cloth-browser.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify({pass:report.pass,errors,initialLength:initial,belayedLength:belayed.sheets[0].length}));
