@@ -15,7 +15,8 @@ func grab_wheel(hand_in_wheel: Vector3,angle: float,radius: float = 0.72) -> boo
 func wheel_torque(hand_in_wheel: Vector3,angle: float,velocity: float) -> float:
  if not wheel_held: return 0.0
  var current := atan2(hand_in_wheel.y,hand_in_wheel.x)
- wheel_target += angle_difference(previous_angle,current)
+ # From aft looking forward, clockwise hand travel is negative in XY.
+ wheel_target -= angle_difference(previous_angle,current)
  previous_angle = current
  return clampf(65.0*(wheel_target-angle)-12.0*velocity,-129.6,129.6)
 func grab_brace(index: int,hand: Vector3,pin: Vector3) -> bool:

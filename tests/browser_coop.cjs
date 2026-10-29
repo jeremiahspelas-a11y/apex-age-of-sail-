@@ -27,7 +27,7 @@ const fs=require('fs'),http=require('http'),path=require('path'),{spawn}=require
    let ready=false,panelOpen=false,endpointFocused=false;
    page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{const s=m.text();if(m.type()==='error')errors.push(s);if(s.includes('COOP'))console.log(i+': '+s);if(s==='APEX COOP PANEL true')panelOpen=true;if(s==='APEX COOP ENDPOINT FOCUSED')endpointFocused=true;if(s==='APEX TRAINER READY')ready=true;if(s.startsWith('APEX COOP STATE '))states[i].push(JSON.parse(s.slice('APEX COOP STATE '.length)));});
    // The host runs physics; joining browsers need only their completed UI.
-   stage='browser '+i+' trainer readiness';await page.goto('http://127.0.0.1:8767/',{waitUntil:'domcontentloaded'});await waitFor(()=>ready);
+   stage='browser '+i+' trainer readiness';await page.goto('http://127.0.0.1:8767/?mode=workshop',{waitUntil:'domcontentloaded'});await waitFor(()=>ready);
    stage='browser '+i+' join panel';await page.mouse.click(350,80);await waitFor(()=>panelOpen);
    await waitFor(()=>endpointFocused);await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('ws://127.0.0.1:19081',{delay:30});await page.keyboard.press('Enter');
    stage='browser '+i+' authoritative snapshot';await waitFor(()=>states[i].some(s=>s.crew>=2));

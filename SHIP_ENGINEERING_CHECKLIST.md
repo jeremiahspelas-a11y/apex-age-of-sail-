@@ -105,3 +105,12 @@ The Royal Museums Greenwich ship-plans collection documents the three orthograph
 - Historic ship plans / naval architecture collections: https://www.rmg.co.uk/collections/ship-plans
 
 **Do not mark any untested project tasks complete.** Revisit this checklist after every functional integration and attach commit, automated test and frame evidence.
+
+### First-person instruction and controls
+
+- [x] Solo first-watch lesson uses real deck/stair traversal, fore-sheet haul/belay and solved rudder control; nine native suites pass.
+- [x] Five near-station desktop/touch controls address the same existing mechanisms as WebXR.
+- [x] VR wheel direction, nearby hand prompts and in-world lesson/readout adapter; controller math and station mapping tested natively.
+- [x] Original material detail maps and visible sail edge ropes/head lashings; fore-sail border follows deformation.
+- [ ] Headset comfort, controller bindings, physical reach, room-scale collision, haptics and sustained frame rate.
+- [ ] Under-way maneuvers, wind/trim lessons, assessment and shared instructor progression.

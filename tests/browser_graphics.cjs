@@ -27,7 +27,7 @@ const waitFor=async(fn,timeout=60000)=>{const until=Date.now()+timeout;while(!fn
   });
   page.on('pageerror', e => errors.push('PAGE: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
-  await page.goto('http://127.0.0.1:8765/index.html', { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await page.goto('http://127.0.0.1:8765/index.html?mode=workshop', { waitUntil: 'domcontentloaded', timeout: 45000 });
   await waitFor(()=>trainerReady);
   await page.waitForTimeout(16000);
   await page.screenshot({ path: path.join(out,'initial.png'),timeout:60000 });

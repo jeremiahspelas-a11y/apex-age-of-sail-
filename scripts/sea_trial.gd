@@ -56,6 +56,7 @@ var coop_toggle: Button
 var vr_button: Button
 var session_notice: Label
 var notice_timer := 0.0
+var lesson: Node
 func _ready() -> void:
  session = preload("res://scripts/crew_session.gd").new()
  session.name = "CrewSession"
@@ -165,6 +166,10 @@ func _ready() -> void:
    session.host(int(argument.get_slice("=",1)))
    brace_ui.visible = true
    brace_status.visible = true
+ lesson = preload("res://scripts/sailing_lesson.gd").new()
+ lesson.name = "SailingLesson"
+ add_child(lesson)
+ lesson.setup(self)
  print("APEX TRAINER READY")
 func _build_session_controls(canvas: CanvasLayer,root: Control) -> void:
  var button := Button.new()
@@ -584,6 +589,7 @@ func _apply_command(action: String) -> void:
  boat.set("reef_fraction",reef)
  boat.set("sheet_angle",sheet)
 func _input(event: InputEvent) -> void:
+ if lesson!=null: lesson.release_event(event)
  # A release over a UI control must still release the stick that owns this finger.
  if event is InputEventScreenTouch and not event.pressed:
   if event.index == deck_look_touch:
@@ -608,6 +614,7 @@ func _notification(what: int) -> void:
   _update_walk_vector()
 
 func _unhandled_input(event: InputEvent) -> void:
+ if lesson!=null and lesson.handle_input(event): return
  if god_mode and spatial_qa.is_active():
   if spatial_qa.waiting_for_point and event is InputEventScreenTouch and event.pressed:
    spatial_qa.pick(event.position)

@@ -82,6 +82,12 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/trainer_test.gd 2>&1 | tee trainer-test.log
           if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" trainer-test.log; then exit 1; fi
           grep -q "APEX TRAINER TEST PASS" trainer-test.log
+      - name: Verify first-watch lesson, deck stations and VR affordances
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/sailing_lesson_test.gd 2>&1 | tee sailing-lesson-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" sailing-lesson-test.log; then exit 1; fi
+          grep -q "APEX SAILING LESSON TEST PASS" sailing-lesson-test.log
       - name: Verify loaded foreyard braces and panel pressure
         run: |
           set -euo pipefail
@@ -125,6 +131,9 @@ jobs:
       - name: Verify browser clew-sheet controls and deformed sail
         timeout-minutes: 5
         run: node tests/browser_cloth.cjs
+      - name: Verify walk-up first-watch browser lesson
+        timeout-minutes: 6
+        run: node tests/browser_lesson.cjs
       - name: Publish visible QA evidence with the game
         if: success()
         run: |

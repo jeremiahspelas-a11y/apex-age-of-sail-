@@ -53,12 +53,15 @@ func _assign_material(mi: MeshInstance3D) -> void:
   material = ShaderMaterial.new()
   material.shader = CANVAS_SHADER if category == "canvas" else SURFACE_SHADER
   material.set_shader_parameter("grain_axis",axis)
+  material.set_shader_parameter("timber_map",preload("res://assets/materials/timber_detail.png"))
+  material.set_shader_parameter("canvas_map",preload("res://assets/materials/canvas_detail.png"))
+  material.set_shader_parameter("hemp_map",preload("res://assets/materials/hemp_detail.png"))
   var kind := 0
   var color := Color(0.40,0.27,0.15)
   match category:
    "deck":
     kind = 1
-    color = Color(0.53,0.39,0.25)
+    color = Color(0.49,0.36,0.23)
    "hull":
     kind = 2
     color = Color(0.32,0.20,0.115)
@@ -70,7 +73,7 @@ func _assign_material(mi: MeshInstance3D) -> void:
     color = Color(0.11,0.13,0.14)
    "canvas":
     kind = 5
-    color = Color(0.79,0.74,0.63)
+    color = Color(0.76,0.71,0.59)
   material.set_shader_parameter("surface_kind",kind)
   material.set_shader_parameter("base_color",color)
   material_cache[cache_key] = material

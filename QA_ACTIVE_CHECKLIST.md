@@ -231,3 +231,9 @@ Never mark visually complete based on a GitHub build or commit alone.
 
 ## Most recent user-supplied visual evidence
 Screenshot 2026-10-27: finite circular ocean boundary, missing visible sun/clouds, dark ship, disconnected-looking fittings, rigid rectangular sails, tiny HUD. These are **open defects** until verified fixed in new screenshots.
+
+## First Watch lesson and station controls
+
+The ordinary launch now presents the first-watch lesson and optional headset entry; engineering controls are behind WORKSHOP. The lesson uses physical deck/stair travel, 12 cm of solved fore-sheet haul plus belay, and actual wheel-to-rudder movement/centering. Five nearby stations share the existing mechanisms; VR adds hand-local affordances and in-world instruction. Restart repairs practice ropes/steering and flooding without duplicating fittings. Three original seamless material maps, derivative bump detail and sail bolt ropes/head lashings improve presentation; these lashings remain cosmetic.
+
+Local verification: all nine strict native suites passed, including the complete collision-driven lesson route. The real native host/two-client suite passed with delayed upgrade and stalled receiver; its raw upgrade probe now waits for the host's actual bound-socket message instead of racing initialization after 0.5 seconds. First-watch browser screenshots were inspected. The browser test follows solved control state and holds look input through the observed camera response; short synthetic key taps can otherwise miss a simulation frame on the software renderer. Browser regression results are reported with the change. Original GLB SHA-256 is unchanged. Headset/Android performance, all-sail cloth and complete running rigging remain open.

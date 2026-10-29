@@ -34,6 +34,8 @@ var original_rudder: MeshInstance3D
 var original_wheel: MeshInstance3D
 var rig_sails: Array[MeshInstance3D] = []
 var rig_yards: Array[MeshInstance3D] = []
+var sail_edges: Dictionary = {}
+const SailFinish = preload("res://scripts/sail_finish.gd")
 
 var actual_rudder_angle: float:
  get: return helm.rudder_angle
@@ -141,6 +143,11 @@ func _bind_rig(root: Node) -> void:
    rig_yards.append(yard)
    rig_sails.append(sail)
    yards.append(_pivot("YardRig_"+suffix,head,[yard,sail]))
+   var edge := MeshInstance3D.new()
+   edge.name = "SailBoltRopeAndHeadLashings"
+   edge.mesh = SailFinish.build(sail.mesh)
+   sail.add_child(edge)
+   sail_edges[sail] = edge
 
 func _bind_openings(root: Node) -> void:
  var door_parts: Array[MeshInstance3D] = []
@@ -196,7 +203,8 @@ func _process(delta: float) -> void:
   helm.rudder_velocity = 0.0
   helm.wheel_velocity = 0.0
  rudder.rotation.y = helm.rudder_angle
- wheel.rotation.z = helm.wheel_angle
+ # Positive helm is starboard: clockwise for a sailor looking forward from aft.
+ wheel.rotation.z = -helm.wheel_angle
  _update_whipstaff()
  _line_clock += delta
  if _line_clock >= 0.1:
@@ -484,10 +492,21 @@ func _bind_clew_sheets() -> void:
   add_child(rack)
  cloth.configure(loaded_sail.get_meta("original_sail_bounds"),loaded_yard.position.z,loaded_sail.global_transform,leads,pins,vessel.global_transform)
 
+func reset_clew_sheets() -> void:
+ # Explicit lesson restart repairs its ropes without creating duplicate fittings.
+ var leads: Array[Vector3] = []
+ var pins: Array[Vector3] = []
+ for line: Dictionary in cloth.lines:
+  leads.append(line.lead)
+  pins.append(line.belay)
+ cloth.configure(loaded_sail.get_meta("original_sail_bounds"),loaded_yard.position.z,loaded_sail.global_transform,leads,pins,vessel.global_transform)
+
 func set_cloth_active(enabled: bool) -> void:
  cloth_active = enabled
  if loaded_sail==null: return
- if not enabled: loaded_sail.mesh = resting_sail_mesh
+ if not enabled:
+  loaded_sail.mesh = resting_sail_mesh
+  sail_edges[loaded_sail].mesh = SailFinish.build(loaded_sail.mesh)
  # A separate material keeps physical vertices aligned with the visible sail.
  var material := loaded_sail.material_override as ShaderMaterial
  if material!=null:
@@ -512,6 +531,7 @@ func _update_clew_sheets() -> void:
  if loaded_sail==null: return
  if cloth_active and not cloth.points.is_empty():
   loaded_sail.mesh = cloth.build_mesh(loaded_sail.global_transform)
+  sail_edges[loaded_sail].mesh = SailFinish.build(loaded_sail.mesh)
  for i in clew_lines.size():
   var line: Dictionary = cloth.lines[i]
   clew_lines[i].visible = cloth_active and line.mode!=SailMembrane.Hold.CUT

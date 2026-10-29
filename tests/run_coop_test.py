@@ -39,9 +39,20 @@ with tempfile.TemporaryDirectory(prefix="apex-coop-") as directory:
                 args.godot, "--headless", "--path", str(project),
                 "--script", "res://tests/coop_peer_test.gd", "--", "--role=" + role,
             ], stdout=stream, stderr=subprocess.STDOUT))
-            time.sleep(0.5)
             if role == "server":
+                # Start the slow-upgrade probe only once the actual socket is bound.
+                # A fixed 0.5s delay races scene/material initialization on loaded CPUs.
+                ready_until = time.monotonic() + 10
+                while True:
+                    stream.flush()
+                    if "Hosting co-op on port 19080" in pathlib.Path(stream.name).read_text():
+                        break
+                    if processes[-1].poll() is not None or time.monotonic() > ready_until:
+                        raise RuntimeError("Co-op server did not become ready: " + pathlib.Path(stream.name).read_text())
+                    time.sleep(0.02)
                 slow_connection = executor.submit(delayed_handshake)
+            else:
+                time.sleep(0.5)
         deadline = time.monotonic() + 30
         for process in processes:
             process.wait(timeout=max(1, deadline - time.monotonic()))

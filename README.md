@@ -2,7 +2,9 @@
 
 Godot 4.7.2 sailing project. The current focus is a **first-person sailing trainer** that exercises reusable ship mechanics. APEX's wider game remains the long-term goal. Keep the working steering wheel and a coherent, historically inspired ship; exact period reconstruction is secondary to understandable operation.
 
-Start on deck, walk with the arrow keys or on-screen arrows, and look with right-mouse drag or a drag on the right side of the touchscreen. A/D operate the helm, W/S change effective sail area, and Q/E trim the yards. F switches between the deck and fly inspection; P hides/restores the HUD. Buttons provide the same sailing commands on touchscreens.
+**START FIRST LESSON** introduces the port fore sheet and steering wheel through walk-up station controls, with optional **ENTER VR** on supported headset browsers. [First Watch controls and current limits](docs/first-watch-lesson.md). Open **WORKSHOP** for the existing inspection and engineering controls.
+
+In the workshop, start on deck, walk with the arrow keys or on-screen arrows, and look with right-mouse drag or a drag on the right side of the touchscreen. A/D operate the helm, W/S change effective sail area, and Q/E trim the yards. F switches between the deck and fly inspection; P hides/restores the HUD. Buttons provide the same sailing commands on touchscreens.
 
 **PHYSICS TRIAL** enables displaced-volume buoyancy, individual sail pressure loads, and the loaded wheel → drum → two steering lines → tiller → rudder transmission. The lower foreyard also has two pressure-loaded braces: select a line, haul/ease, belay, let it run free or cut it. [Brace controls and model](docs/yard-brace-trial.md) explain operation. The same lower fore sail now has a deforming membrane and two loaded clew sheets. Select **CONTROL: CLEW SHEETS** to haul/ease, belay, free or cut them. [Membrane model, controls and evidence](docs/sail-membrane-trial.md). The earlier controlled prototype remains available. Web builds also accept `?simulation=forces`.
 

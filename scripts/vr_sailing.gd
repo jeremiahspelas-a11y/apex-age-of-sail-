@@ -14,8 +14,15 @@ var controllers: Dictionary = {}
 var grips: Dictionary = {}
 var clew_grips: Dictionary = {}
 var command_clock := 0.0
+var training_prompt := ""
+var training_hint: Label3D
+var feedback_text := ""
+var feedback_left := 0.0
 func setup(root: Node3D) -> void:
  game = root
+ game.session.feedback.connect(func(text: String):
+  feedback_text = text
+  feedback_left = 3.0)
  origin = XROrigin3D.new()
  add_child(origin)
  camera = XRCamera3D.new()
@@ -52,10 +59,13 @@ func _started() -> void:
  game.player.read_keyboard = false
  game.hud_layer.visible = false
  var hint := Label3D.new()
+ training_hint = hint
  hint.text = "Grip: wheel / rope tail\nTrigger at pin: belay\nThumbstick: walk"
- hint.font_size = 22
- hint.pixel_size = 0.0008
- hint.position = Vector3(0,-0.2,-0.7)
+ hint.font_size = 20
+ hint.pixel_size = 0.001
+ hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+ hint.width = 470
+ hint.position = Vector3(0,-0.26,-0.9)
  camera.add_child(hint)
  _place_origin()
 func _ended() -> void:
@@ -68,6 +78,8 @@ func _ended() -> void:
  game.player.motion_input = Vector2.ZERO
  game.hud_layer.visible = true
  for child in camera.get_children(): child.queue_free()
+ training_hint = null
+ training_prompt = ""
 func _place_origin() -> void:
  origin.global_position = game.player.global_position-Vector3.UP*0.9
  if interface!=null and interface.reference_space_type=="local": origin.global_position += Vector3.UP*1.6
@@ -87,6 +99,13 @@ func _controller(id: int) -> XRController3D:
  sphere.height = 0.08
  visual.mesh = sphere
  node.add_child(visual)
+ var label := Label3D.new()
+ label.name = "NearbyStationHint"
+ label.font_size = 22
+ label.pixel_size = 0.0012
+ label.position = Vector3(0,0.10,0)
+ label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+ node.add_child(label)
  controllers[id] = node
  return node
 func _grab(id: int) -> void:
@@ -149,12 +168,37 @@ func _belay_near_pin(id: int) -> void:
    _release(id)
    _dispatch("clew_belay",0.0,i)
    return
+func hint_at(point: Vector3,id: int = -1) -> String:
+ var rig: Node3D = game.boat.get_node("Mechanisms")
+ if grips.has(id):
+  var held: RefCounted = grips[id]
+  if held.wheel_held: return "WHEEL GRIPPED\nTurn your hand / release to let go"
+  return "ROPE IN HAND\nPull away: haul / feed back: ease\nTrigger at pin: belay"
+ var probe := HandInput.new()
+ if probe.grab_wheel(point-rig.wheel.position,rig.helm.wheel_angle):
+  return "STEERING WHEEL\nSqueeze the rim to grip"
+ for i in rig.cloth.lines.size():
+  if point.distance_to(rig.cloth.lines[i].belay)<0.4:
+   return ("PORT" if i==0 else "STARBOARD")+" CLEW SHEET\nSqueeze: grip / trigger: belay"
+ for i in rig.brace.lines.size():
+  if point.distance_to(rig.loaded_yard.position+rig.brace.lines[i].belay)<0.4:
+   return ("PORT" if i==0 else "STARBOARD")+" YARD BRACE\nSqueeze: grip / trigger: belay"
+ return ""
 func _physics_process(delta: float) -> void:
  if not active: return
  _place_origin()
+ feedback_left = maxf(0,feedback_left-delta)
+ if training_hint!=null:
+  var rig: Node3D = game.boat.get_node("Mechanisms")
+  training_hint.text = feedback_text if feedback_left>0 else (training_prompt if not training_prompt.is_empty() else "Grip: wheel / rope tail | Trigger at pin: belay | Thumbstick: walk")
+  training_hint.text += "\nRudder %.1f deg | Fore sheets %.0f / %.0f N"%[rad_to_deg(rig.actual_rudder_angle),rig.cloth.lines[0].tension,rig.cloth.lines[1].tension]
  for id in range(16):
   if interface.is_input_source_active(id): _controller(id)
- for id: int in controllers.keys(): controllers[id].visible = interface.is_input_source_active(id)
+ for id: int in controllers.keys():
+  controllers[id].visible = interface.is_input_source_active(id)
+  if controllers[id].visible:
+   var label: Label3D = controllers[id].get_node("NearbyStationHint")
+   label.text = hint_at(game.boat.to_local(controllers[id].global_position),id)
  for id: int in grips.keys():
   if not interface.is_input_source_active(id): _release(id)
  command_clock += delta

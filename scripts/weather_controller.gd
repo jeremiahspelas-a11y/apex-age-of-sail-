@@ -103,12 +103,12 @@ func _apply_state(delta: float) -> void:
  phase = (starting_hour-6.0)/24.0*TAU+Ocean.time/maxf(cycle_seconds,1.0)*TAU
  var day := smoothstep(-0.10,0.22,sin(phase))
  sun.rotation = Vector3(-PI+phase,-0.61,0)
- sun.light_energy = (1.6-current_storm*0.8)*day+float(state.lightning)*2.0
+ sun.light_energy = (1.15-current_storm*0.55)*day+float(state.lightning)*2.0
  sun.light_color = Color(1.0,0.95,0.85).lerp(Color(0.72,0.80,0.91),current_storm)
  moon.rotation = Vector3(sun.rotation.x+PI,sun.rotation.y,0)
  moon.light_energy = 0.25*(1.0-day)*(1.0-current_storm*0.7)
  environment.ambient_light_color = Color(0.3,0.4,0.55).lerp(Color(0.64,0.72,0.80),day)
- environment.ambient_light_energy = 0.18+day*0.48
+ environment.ambient_light_energy = 0.18+day*0.32
  environment.fog_enabled = true
  environment.fog_light_color = Color(0.41,0.51,0.57).lerp(Color(0.21,0.26,0.31),current_storm)
  environment.fog_density = 3.912/maxf(200.0,state.visibility_m)
