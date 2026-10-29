@@ -76,8 +76,8 @@ func run() -> void:
  check(error<0.03,"60/120 Hz cloth positions must agree within 3 cm with fixed supports")
  var still := fixture()
  still.gravity = Vector3.ZERO
- var pressure: PackedVector3Array = still.pressure(Vector3(0,0,10))
- var reverse: PackedVector3Array = still.pressure(Vector3(0,0,-10))
+ var pressure: PackedVector3Array = still.pressure(Vector3(0,0,10),1,1.0/240)
+ var reverse: PackedVector3Array = still.pressure(Vector3(0,0,-10),1,1.0/240)
  var total := Vector3.ZERO
  for i in pressure.size():
   total += pressure[i]

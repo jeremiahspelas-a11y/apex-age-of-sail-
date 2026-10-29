@@ -88,6 +88,17 @@ func run() -> void:
    var yard: MeshInstance3D = mechanism.rig_yards[i]
    check(pivot.position.is_equal_approx(socket),"Yard socket must remain on its mast during trim")
    var original: AABB = sail.get_meta("original_sail_bounds")
+   if pivot==mechanism.loaded_yard:
+    var head := Vector3(0,original.end.y,socket.z-mechanism.cloth.head_standoff)
+    var axis := yard.to_global(yard.mesh.get_aabb().get_center())
+    var radius := maxf(yard.mesh.get_aabb().size.y,yard.mesh.get_aabb().size.z)*0.5
+    check(absf(sail.to_global(head).distance_to(axis)-radius-mechanism.cloth.contact_thickness-0.002)<0.001,"Fore head must stay at its forward-face lashing clearance while bracing")
+    for side in 2:
+     var end: Vector3 = pivot.to_global(mechanism.brace.rest_end(side))
+     var actual_end := yard.mesh.get_aabb().get_center()
+     actual_end.x = yard.mesh.get_aabb().position.x if side==0 else yard.mesh.get_aabb().end.x
+     check(end.distance_to(yard.to_global(actual_end))<0.001,"Solved brace endpoint must stay on the relocated spar tip")
+    continue
    var center := Vector3(0,original.end.y,socket.z)
    check(sail.to_global(center).distance_to(pivot.global_position) < 0.001,"Sail head must stay pinned to its yard pivot")
    var tip := Vector3(original.size.x*0.5,original.end.y,socket.z)

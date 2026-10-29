@@ -11,6 +11,7 @@ var cloth := SailMembrane.new()
 var clew_lines: Array[MeshInstance3D] = []
 var resting_sail_mesh: ArrayMesh
 var cloth_active := false
+var head_lashing_offset := Vector3.ZERO
 var loaded_yard: Node3D
 var loaded_sail: MeshInstance3D
 var brace_lines: Array[MeshInstance3D] = []
@@ -137,9 +138,18 @@ func _bind_rig(root: Node) -> void:
    var sail := _find_suffix(root,"Square sail "+suffix)
    if yard == null or sail == null: continue
    var head := Vector3(0,yard.mesh.get_aabb().get_center().y,mast_z[mast-1])
+   if suffix=="1_3":
+    # The old foreyard passed through the mast axis. Keep its brace pivot there,
+    # but place the actual spar 0.40 m forward, clear of the 0.25 m mast radius.
+    yard.position.z -= 0.40
    var old_bounds := sail.mesh.get_aabb()
    sail.set_meta("original_sail_bounds",old_bounds)
-   sail.mesh = SailCloth.build(old_bounds,head.z)
+   var visual_head_z := head.z
+   if suffix=="1_3":
+    var yard_bounds := yard.mesh.get_aabb()
+    var yard_center := vessel.to_local(yard.to_global(yard_bounds.get_center()))
+    visual_head_z = yard_center.z-maxf(yard_bounds.size.y,yard_bounds.size.z)*0.5-cloth.contact_thickness-0.002
+   sail.mesh = SailCloth.build(old_bounds,visual_head_z)
    rig_yards.append(yard)
    rig_sails.append(sail)
    yards.append(_pivot("YardRig_"+suffix,head,[yard,sail]))
@@ -290,6 +300,10 @@ func _bind_braces() -> void:
   rack.material_override = wood
   rack.position = Vector3(pin.x,Refit.MAIN_TOP+0.4,pin.z)
   add_child(rack)
+ for yard: MeshInstance3D in rig_yards:
+  if yard.get_parent()==loaded_yard:
+   var center := vessel.to_local(yard.to_global(yard.mesh.get_aabb().get_center()))
+   brace.spar_offset = center-loaded_yard.position
  brace.configure(span,leads,belays)
  _update_braces()
 
@@ -319,7 +333,7 @@ func _update_braces() -> void:
   var line: Dictionary = brace.lines[i]
   var visual := brace_lines[i]
   visual.visible = line.mode!=YardBrace.Hold.CUT
-  var end := loaded_yard.position+Basis(Vector3.UP,loaded_yard.rotation.y)*Vector3(-brace.half_span if i==0 else brace.half_span,0,0)
+  var end := loaded_yard.position+Basis(Vector3.UP,loaded_yard.rotation.y)*brace.rest_end(i)
   var lead: Vector3 = loaded_yard.position+line.lead
   var pin: Vector3 = loaded_yard.position+line.belay
   var sag := 0.0
@@ -490,6 +504,15 @@ func _bind_clew_sheets() -> void:
   rack.material_override = wood
   rack.position = pin-Vector3.UP*0.2
   add_child(rack)
+ # Head lashings sit on the forward face of the relocated foreyard.
+ for yard: MeshInstance3D in rig_yards:
+  if yard.get_parent()!=loaded_yard: continue
+  var bounds := yard.mesh.get_aabb()
+  var local := loaded_sail.global_transform.affine_inverse()*yard.global_transform
+  var center := local*bounds.get_center()
+  var radius := maxf(bounds.size.y,bounds.size.z)*0.5
+  cloth.head_standoff = loaded_yard.position.z-center.z+radius+cloth.contact_thickness+0.002
+  head_lashing_offset = Vector3(0,0,radius+cloth.contact_thickness+0.002)
  cloth.configure(loaded_sail.get_meta("original_sail_bounds"),loaded_yard.position.z,loaded_sail.global_transform,leads,pins,vessel.global_transform)
 
 func reset_clew_sheets() -> void:
@@ -499,6 +522,15 @@ func reset_clew_sheets() -> void:
  for line: Dictionary in cloth.lines:
   leads.append(line.lead)
   pins.append(line.belay)
+ # Head lashings sit on the forward face of the relocated foreyard.
+ for yard: MeshInstance3D in rig_yards:
+  if yard.get_parent()!=loaded_yard: continue
+  var bounds := yard.mesh.get_aabb()
+  var local := loaded_sail.global_transform.affine_inverse()*yard.global_transform
+  var center := local*bounds.get_center()
+  var radius := maxf(bounds.size.y,bounds.size.z)*0.5
+  cloth.head_standoff = loaded_yard.position.z-center.z+radius+cloth.contact_thickness+0.002
+  head_lashing_offset = Vector3(0,0,radius+cloth.contact_thickness+0.002)
  cloth.configure(loaded_sail.get_meta("original_sail_bounds"),loaded_yard.position.z,loaded_sail.global_transform,leads,pins,vessel.global_transform)
 
 func set_cloth_active(enabled: bool) -> void:
@@ -506,7 +538,7 @@ func set_cloth_active(enabled: bool) -> void:
  if loaded_sail==null: return
  if not enabled:
   loaded_sail.mesh = resting_sail_mesh
-  sail_edges[loaded_sail].mesh = SailFinish.build(loaded_sail.mesh)
+  sail_edges[loaded_sail].mesh = SailFinish.build(loaded_sail.mesh,head_lashing_offset)
  # A separate material keeps physical vertices aligned with the visible sail.
  var material := loaded_sail.material_override as ShaderMaterial
  if material!=null:
@@ -518,6 +550,27 @@ func set_cloth_active(enabled: bool) -> void:
    if wetness!=null: wetness.surfaces.append(material)
   material.set_shader_parameter("cloth_flutter",not enabled)
 
+func _cloth_spar_envelopes() -> Array[Dictionary]:
+ var envelopes: Array[Dictionary] = []
+ var imported := vessel.get_node("HullVisual")
+ for part: Node in imported.find_children("*","MeshInstance3D",true,false):
+  if str(part.name).contains("Mast "):
+   _append_spar_envelope(envelopes,part as MeshInstance3D,false,1)
+ for yard: MeshInstance3D in rig_yards:
+  _append_spar_envelope(envelopes,yard,yard.get_parent()==loaded_yard,0)
+ return envelopes
+
+func _append_spar_envelope(envelopes: Array[Dictionary],mesh: MeshInstance3D,on_yard: bool,axis: int) -> void:
+ var bounds := mesh.mesh.get_aabb()
+ var radius := maxf(bounds.size[(axis+1)%3],bounds.size[(axis+2)%3])*0.5
+ var a := bounds.get_center()
+ var b := a
+ a[axis] = bounds.position[axis]+radius
+ b[axis] = bounds.end[axis]-radius
+ var frame := loaded_sail.global_transform if on_yard else vessel.global_transform
+ var local := frame.affine_inverse()*mesh.global_transform
+ envelopes.append({"a":local*a,"b":local*b,"radius":radius,"yard":on_yard})
+
 func step_cloth(delta: float,body_pose: Transform3D,wind: Vector3,reef: float,com: Vector3,reset_state: bool) -> Dictionary:
  var local := vessel.global_transform.affine_inverse()*loaded_sail.global_transform
  var sail_pose := body_pose*local
@@ -525,13 +578,14 @@ func step_cloth(delta: float,body_pose: Transform3D,wind: Vector3,reef: float,co
  if reset_state:
   cloth.reset(sail_pose)
   cloth.fixture_transform = body_pose
+ cloth.set_capsules(_cloth_spar_envelopes())
  return cloth.step(delta,sail_pose,wind,reef,com,hinge,body_pose)
 
 func _update_clew_sheets() -> void:
  if loaded_sail==null: return
  if cloth_active and not cloth.points.is_empty():
   loaded_sail.mesh = cloth.build_mesh(loaded_sail.global_transform)
-  sail_edges[loaded_sail].mesh = SailFinish.build(loaded_sail.mesh)
+  sail_edges[loaded_sail].mesh = SailFinish.build(loaded_sail.mesh,head_lashing_offset)
  for i in clew_lines.size():
   var line: Dictionary = cloth.lines[i]
   clew_lines[i].visible = cloth_active and line.mode!=SailMembrane.Hold.CUT

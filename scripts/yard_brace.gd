@@ -13,6 +13,7 @@ var tail_mass := 2.0
 var hand_force_limit := 180.0
 var hand_speed := 0.35
 var half_span := 2.75
+var spar_offset := Vector3.ZERO # spar center relative to its mast-axis yaw bearing
 var lines: Array[Dictionary] = []
 
 func configure(span: float,leads: Array[Vector3],belays: Array[Vector3],initial_angle: float = 0.0) -> void:
@@ -27,7 +28,10 @@ func configure(span: float,leads: Array[Vector3],belays: Array[Vector3],initial_
   lines.append({"lead":leads[i],"belay":belays[i],"tail":tail,"length":length,"velocity":0.0,"tension":80.0,"mode":Hold.BELAYED,"pull":0.0,"hand_force":0.0,"minimum":tail+0.2,"maximum":length+8.0})
 
 func yard_end(index: int) -> Vector3:
- return Basis(Vector3.UP,angle)*Vector3(-half_span if index==0 else half_span,0,0)
+ return Basis(Vector3.UP,angle)*rest_end(index)
+
+func rest_end(index: int) -> Vector3:
+ return spar_offset+Vector3(-half_span if index==0 else half_span,0,0)
 
 func set_hand(index: int,pull: float) -> void:
  if lines[index].mode == Hold.CUT: return

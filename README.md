@@ -29,3 +29,5 @@ Open `project.godot` in Godot 4.7.2 and run `physics_trial.tscn`. For the Web ex
 The scene-independent `scripts/hull_hydrostatics.gd` accepts hull sections, body state and a water-height callback; `scripts/steering_transmission.gd` accepts helm effort and water hinge torque. They return forces/moments or steering state without depending on APEX's camera, input or assets. [Integration examples and limits](docs/reusable-ship-mechanics.md) describe the contracts. The full vessel is not yet packaged as a drop-in asset.
 
 [Physics assumptions and verification](docs/physics-foundation.md) · [Ship construction evidence](docs/ship-refit.md) · [Active QA ledger](QA_ACTIVE_CHECKLIST.md)
+
+Fore-sail rest-shape and spar-contact evidence: [controlled wind cycle](docs/realism/fore-sail-cycle.md). One of eight sails is physically deforming; full running rigging, cloth folds/self-contact and hardware VR acceptance remain open.

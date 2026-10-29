@@ -106,6 +106,12 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/sail_membrane_test.gd 2>&1 | tee sail-membrane-test.log
           if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" sail-membrane-test.log; then exit 1; fi
           grep -q "APEX SAIL MEMBRANE TEST PASS" sail-membrane-test.log
+      - name: Verify flat sail, wind cycle and spar contact
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/sail_contact_test.gd 2>&1 | tee sail-contact-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" sail-contact-test.log; then exit 1; fi
+          grep -q "APEX SAIL CONTACT TEST PASS" sail-contact-test.log
       - name: Verify shared sea and procedural weather
         run: |
           set -euo pipefail

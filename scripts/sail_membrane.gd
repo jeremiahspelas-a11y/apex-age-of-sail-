@@ -1,6 +1,7 @@
 extends RefCounted
 ## Low-resolution XPBD membrane. SI units; world-space particles, head fixed to yard.
-## Distance constraints approximate woven canvas; no self/contact or tear solver.
+## Flat cut pattern, pressure-driven billow and frictionless spar contact. No self-contact/tears.
+const Contact = preload("res://scripts/sail_contact.gd")
 enum Hold {BELAYED,HAND,FREE,CUT}
 const COLUMNS := 6
 const ROWS := 4
@@ -18,9 +19,24 @@ var canvas_mass := 0.0
 var area := 0.0
 var hand_force_limit := 180.0
 var hand_speed := 0.35
+var areal_mass := 0.6 # provisional kg/m2, not calibrated historical canvas
 var gravity := Vector3(0,-9.81,0)
 var damping := 0.7
 var report: Dictionary = {}
+# Optional unscaled capsule envelopes in fixture or sail mesh coordinates.
+var capsules: Array[Dictionary] = []
+var contact_thickness := 0.012
+var head_standoff := 0.0
+
+func set_capsules(envelopes: Array[Dictionary]) -> void:
+ capsules = envelopes.duplicate(true)
+
+func _world_capsules() -> Array[Dictionary]:
+ var result: Array[Dictionary] = []
+ for capsule: Dictionary in capsules:
+  var frame: Transform3D = pose if capsule.get("yard",false) else fixture_transform
+  result.append({"a":frame*capsule.a,"b":frame*capsule.b,"radius":capsule.radius,"yard":capsule.get("yard",false)})
+ return result
 
 func configure(bounds: AABB,head_z: float,initial_pose: Transform3D,leads: Array[Vector3],pins: Array[Vector3],fixture_pose: Transform3D = Transform3D.IDENTITY) -> void:
  fixture_transform = fixture_pose
@@ -32,7 +48,7 @@ func configure(bounds: AABB,head_z: float,initial_pose: Transform3D,leads: Array
   var v := float(row)/ROWS
   for col in COLUMNS+1:
    var u := float(col)/COLUMNS
-   rest.append(Vector3(bounds.get_center().x+(u-0.5)*bounds.size.x*lerpf(1.0,0.88,v),bounds.end.y-v*bounds.size.y+sin(u*PI)*pow(v,4.0)*bounds.size.y*0.075,head_z-0.55*v-0.18*sin(u*PI)*sin(v*PI)))
+   rest.append(Vector3(bounds.get_center().x+(u-0.5)*bounds.size.x*lerpf(1.0,0.88,v),bounds.end.y-v*bounds.size.y+sin(u*PI)*pow(v,4.0)*bounds.size.y*0.075,head_z-head_standoff))
  masses.resize(rest.size())
  masses.fill(0.0)
  for row in ROWS:
@@ -45,7 +61,7 @@ func configure(bounds: AABB,head_z: float,initial_pose: Transform3D,leads: Array
      triangles.append(index)
      # Top strip mass is lumped onto its nearest free row, not discarded.
      var mass_index := index+COLUMNS+1 if index<=COLUMNS else index
-     masses[mass_index] += triangle_area*0.6/3.0
+     masses[mass_index] += triangle_area*areal_mass/3.0
  canvas_mass = 0.0
  for mass_value in masses: canvas_mass += mass_value
  for row in ROWS+1:
@@ -98,7 +114,7 @@ func cut(index: int) -> void:
  lines[index].pull = 0.0
  lines[index].hand_force = 0.0
 
-func pressure(wind: Vector3,reef: float = 1.0) -> PackedVector3Array:
+func pressure(wind: Vector3,reef: float = 1.0,step_h: float = 0.0) -> PackedVector3Array:
  var forces := PackedVector3Array()
  forces.resize(points.size())
  forces.fill(Vector3.ZERO)
@@ -111,7 +127,13 @@ func pressure(wind: Vector3,reef: float = 1.0) -> PackedVector3Array:
   if size<0.0000001: continue
   var normal := cross_product/size
   var speed := (wind-(velocities[a]+velocities[b]+velocities[c])/3.0).dot(normal)
-  var load := normal*(0.5*1.225*0.8*speed*absf(speed)*size*0.5*clampf(reef,0,1)/3.0)
+  var coefficient := 0.5*1.225*0.8*clampf(reef,0,1)
+  # Analytic quadratic-drag relaxation of a local patch over this substep.
+  # Explicit V^2 drag can overshoot air velocity after a contact impulse and
+  # add energy indefinitely. This averages the patch's decaying relative speed;
+  # h=0 still reports instantaneous pressure for diagnostics.
+  var relaxation := 1.0+step_h*coefficient*absf(speed)/areal_mass
+  var load := normal*(coefficient*speed*absf(speed)*size*0.5/(3.0*relaxation))
   forces[a] += load
   forces[b] += load
   forces[c] += load
@@ -134,6 +156,7 @@ func step(delta: float,next_pose: Transform3D,wind: Vector3,reef: float,com: Vec
  var torque := Vector3.ZERO
  var wind_force := Vector3.ZERO
  var top_torque := Vector3.ZERO
+ var contact_count := 0
  var old_pose := pose
  var old_fixture := fixture_transform
  for sub in count:
@@ -143,7 +166,7 @@ func step(delta: float,next_pose: Transform3D,wind: Vector3,reef: float,com: Vec
   var carried_motion := pose*previous_support.affine_inverse()
   var before := momentum(com)
   var previous := points.duplicate()
-  var loads := pressure(wind,reef)
+  var loads := pressure(wind,reef,h)
   var external := Vector3.ZERO
   var external_torque := Vector3.ZERO
   var top_load := Vector3.ZERO
@@ -171,6 +194,7 @@ func step(delta: float,next_pose: Transform3D,wind: Vector3,reef: float,com: Vec
      line.hand_force = clampf((line.pull*hand_speed-line.velocity)*2.0/0.08-line.tension,-hand_force_limit,hand_force_limit)
     line.velocity += (line.hand_force-2.5*line.velocity)*h/2.0
     line.length += line.velocity*h
+  var world_capsules := _world_capsules()
   for iteration in 6:
    for constraint: Dictionary in constraints:
     var a: int = constraint.a
@@ -204,6 +228,11 @@ func step(delta: float,next_pose: Transform3D,wind: Vector3,reef: float,com: Vec
     line["lambda"] = new_lambda
     points[i] += displacement/distance*dl*w
     line.length -= dl*wq
+   # Contact is solved after material/rope constraints, including triangle interiors.
+   if not world_capsules.is_empty():
+    var contact := Contact.solve(points,masses,triangles,previous,world_capsules,contact_thickness,h,hinge)
+    contact_count += contact.count
+    top_load += contact.yard_torque
   for constraint: Dictionary in constraints:
    var a: int = constraint.a
    var b: int = constraint.b
@@ -225,7 +254,7 @@ func step(delta: float,next_pose: Transform3D,wind: Vector3,reef: float,com: Vec
   force += (external-(after.linear-before.linear)/h)/count
   torque += (external_torque-(after.angular-before.angular)/h)/count
   top_torque += top_load/count
- report = {"force":force,"torque":torque,"wind_force":wind_force,"top_torque":top_torque,"canvas_mass":canvas_mass}
+ report = {"force":force,"torque":torque,"wind_force":wind_force,"top_torque":top_torque,"canvas_mass":canvas_mass,"contact_constraints":contact_count}
  return report
 
 func build_mesh(mesh_pose: Transform3D) -> ArrayMesh:

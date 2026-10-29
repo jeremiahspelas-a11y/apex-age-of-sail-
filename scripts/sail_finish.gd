@@ -1,7 +1,7 @@
 extends RefCounted
 ## Visible bolt ropes and head lashings follow the sail mesh. Cosmetic, not new constraints.
 const Refit = preload("res://scripts/ship_refit.gd")
-static func build(sail_mesh: Mesh) -> ArrayMesh:
+static func build(sail_mesh: Mesh,head_loop_offset: Vector3 = Vector3.ZERO) -> ArrayMesh:
  var arrays := sail_mesh.surface_get_arrays(0)
  var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
  var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
@@ -23,7 +23,7 @@ static func build(sail_mesh: Mesh) -> ArrayMesh:
   side.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return a.t<b.t)
   for i in range(side.size()-1): Refit._tube(st,side[i].p,side[i+1].p,0.014)
  for item: Dictionary in sides[0]:
-  var p: Vector3 = item.p
+  var p: Vector3 = item.p+head_loop_offset
   for k in 8:
    var a := float(k)/8.0*TAU
    var b := float(k+1)/8.0*TAU
