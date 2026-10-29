@@ -16,11 +16,14 @@ const fs=require('fs'),http=require('http'),path=require('path'),{spawn}=require
   // Match the locally verified software-renderer configuration on CI as well.
   const args=['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox','--no-zygote','--single-process','--in-process-gpu','--ignore-gpu-blocklist'];
   browser=await chromium.launch({headless:true,...(executablePath?{executablePath}:{}),args});
+  // Share a context to avoid the second-context stall observed in CI. Each page
+  // runs its own Godot instance and owns a distinct WebSocket peer.
+  const context=await browser.newContext({...devices['Pixel 7'],viewport:{width:960,height:540},deviceScaleFactor:1});
   const pages=[];
   const waitFor=async(fn,timeout=60000)=>{const until=Date.now()+timeout;while(!fn()){if(Date.now()>until)throw Error('Timed out waiting for '+stage+'; host exit='+host.exitCode+'; host errors='+hostLog.join('').split('\n').filter(s=>/ERROR|failed/i.test(s)).slice(-4).join(' | ')+'; browser errors='+errors.join(' | '));await new Promise(r=>setTimeout(r,250));}};
   await waitFor(()=>hostLog.join('').includes('APEX FORCE TRIAL ON'),10000);
   for(let i=0;i<2;i++){
-   const page=await browser.newPage({...devices['Pixel 7'],viewport:{width:960,height:540},deviceScaleFactor:1});pages.push(page);
+   stage='browser '+i+' page creation';const page=await context.newPage();pages.push(page);
    let ready=false,panelOpen=false,endpointFocused=false;
    page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{const s=m.text();if(m.type()==='error')errors.push(s);if(s.includes('COOP'))console.log(i+': '+s);if(s==='APEX COOP PANEL true')panelOpen=true;if(s==='APEX COOP ENDPOINT FOCUSED')endpointFocused=true;if(s==='APEX TRAINER READY')ready=true;if(s.startsWith('APEX COOP STATE '))states[i].push(JSON.parse(s.slice('APEX COOP STATE '.length)));});
    // The host runs physics; joining browsers need only their completed UI.
