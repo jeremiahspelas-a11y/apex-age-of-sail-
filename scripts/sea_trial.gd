@@ -11,6 +11,7 @@ var orbit := 0.65
 var pitch := 0.40
 var dragging := false
 var deck_look_touch := -1
+var deck_look_position := Vector2.ZERO
 var god_mode := false
 var photo_mode := false
 var fly_speed := 9.0
@@ -590,6 +591,12 @@ func _apply_command(action: String) -> void:
  boat.set("sheet_angle",sheet)
 func _input(event: InputEvent) -> void:
  if lesson!=null: lesson.release_event(event)
+ # Retain the captured finger's absolute path. Some Web touch streams supply a
+ # first relative delta measured from zero, which otherwise spins the camera.
+ if not god_mode and event is InputEventScreenDrag and dragging and event.index==deck_look_touch:
+  _look(event.position-deck_look_position)
+  deck_look_position = event.position
+  get_viewport().set_input_as_handled()
  # A release over a UI control must still release the stick that owns this finger.
  if event is InputEventScreenTouch and not event.pressed:
   if event.index == deck_look_touch:
@@ -614,7 +621,9 @@ func _notification(what: int) -> void:
   _update_walk_vector()
 
 func _unhandled_input(event: InputEvent) -> void:
- if lesson!=null and lesson.handle_input(event): return
+ if lesson!=null and lesson.handle_input(event):
+  get_viewport().set_input_as_handled()
+  return
  if god_mode and spatial_qa.is_active():
   if spatial_qa.waiting_for_point and event is InputEventScreenTouch and event.pressed:
    spatial_qa.pick(event.position)
@@ -667,9 +676,8 @@ func _unhandled_input(event: InputEvent) -> void:
  if event is InputEventScreenTouch:
   if event.pressed and deck_look_touch == -1 and event.position.x > get_viewport().get_visible_rect().size.x * 0.5:
    deck_look_touch = event.index
+   deck_look_position = event.position
    dragging = true
- if event is InputEventScreenDrag and dragging and event.index == deck_look_touch:
-  _look(event.relative)
  if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
   if god_mode:
    fly_yaw -= event.relative.x*0.004

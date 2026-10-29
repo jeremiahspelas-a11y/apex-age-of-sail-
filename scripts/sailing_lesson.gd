@@ -28,20 +28,54 @@ var target_index := 1 # port clew (stations alternate sheet/brace by side)
 var _keys: Dictionary = {}
 var lesson_vr: Button
 var welcome_vr: Button
+var welcome_content: VBoxContainer
+var menu_content: VBoxContainer
+var welcome_scroll: ScrollContainer
+var menu_scroll: ScrollContainer
 var welcome_start: Button
+var progress: ProgressBar
+var short_action: Label
+var eyebrow: Label
+var details_button: Button
+var lesson_menu: Button
+var menu_layer: Control
+var menu_panel: PanelContainer
+var menu_help: Label
+var menu_heading: Label
+var menu_extra: Array[Control] = []
+var menu_vr: Button
+var resume_button: Button
+var restart_button: Button
+var touch_toggle: CheckButton
+var touch_pad: Control
+var keyboard_hint: Label
+var station_header: HBoxContainer
+var station_meter: Control
+var touch_mode := false
+var details_open := false
+var _move_keys: Dictionary = {}
+var _motion_owned := false
+var _layout_key := ""
+var _layout_frames := 0
+var _welcome_report_pending := false
+var _menu_report_pending := false
 func setup(root: Node3D) -> void:
  game = root
+ process_mode = Node.PROCESS_MODE_ALWAYS
  deck = Stations.new()
  deck.name = "DeckStations"
+ deck.process_mode = Node.PROCESS_MODE_PAUSABLE
  add_child(deck)
  deck.setup(game)
  hud = Control.new()
  hud.name = "FirstWatchHUD"
+ hud.process_mode = Node.PROCESS_MODE_ALWAYS
  hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
  game.hud_layer.add_child(hud)
  _build_welcome()
  _build_lesson()
+ _build_menu()
  marker = Label3D.new()
  marker.name = "LessonStationMarker"
  marker.font_size = 36
@@ -53,8 +87,12 @@ func setup(root: Node3D) -> void:
  game.boat.add_child(marker)
  marker.visible = false
  deck.changed.connect(_station_changed)
- get_viewport().size_changed.connect(_layout)
+ if OS.has_feature("web"):
+  touch_mode = bool(JavaScriptBridge.eval("navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches"))
+ touch_toggle.button_pressed = touch_mode
+ get_viewport().size_changed.connect(_viewport_resized)
  _layout()
+ _settle_layout()
  var skip := DisplayServer.get_name()=="headless"
  if OS.has_feature("web"):
   skip = bool(JavaScriptBridge.eval("new URLSearchParams(location.search).get('mode') === 'workshop' || new URLSearchParams(location.search).get('simulation') === 'forces'"))
@@ -63,28 +101,129 @@ func setup(root: Node3D) -> void:
  if skip: enter_workshop()
  else:
   _show_welcome()
-  _report_welcome.call_deferred()
+  _report_welcome()
 func _report_welcome() -> void:
- await get_tree().process_frame
- await get_tree().process_frame
- if welcome.visible:
-  var point := welcome_start.get_global_rect().get_center()
-  print("APEX LESSON WELCOME ",JSON.stringify({"start":[point.x,point.y]}))
+ _welcome_report_pending = true
+ _settle_layout()
+func _tick_layout() -> void:
+ if _layout_frames<=0: return
+ _layout_frames -= 1
+ if _layout_frames in [2,0]: _layout()
+ if _layout_frames!=0: return
+ if _welcome_report_pending and welcome.visible:
+  print("APEX LESSON WELCOME ",JSON.stringify({"start":_center(welcome_start)}))
+ if _menu_report_pending and menu_layer.visible:
+  print("APEX LESSON MENU ",JSON.stringify({"details":details_open,"resume":_center(resume_button),"touch":_center(touch_toggle),"restart":_center(restart_button)}))
+ _welcome_report_pending = false
+ _menu_report_pending = false
+func _viewport_resized() -> void:
+ touch_pad.reset()
+ game.dragging = false
+ game.deck_look_touch = -1
+ _layout()
+ _settle_layout()
+ _layout_key = ""
 func _layout() -> void:
  var view := get_viewport().get_visible_rect().size
- var width := minf(520,view.x-32)
- welcome.custom_minimum_size.x = width
- welcome.offset_left = -width*0.5
- welcome.offset_right = width*0.5
- welcome.offset_top = -minf(230,view.y*0.5-16)
- for node in welcome.get_child(0).get_children():
-  if node is Label: node.custom_minimum_size.x = width-28
- var narrow := view.x<760
- objective.position.y = 72 if narrow else 16
- objective.custom_minimum_size.x = minf(360,view.x-32)
- for label: Label in [objective_title,instruction,navigation,wind_label]: label.custom_minimum_size.x = minf(332,view.x-60)
- station_panel.offset_top = -224-(74 if narrow else 0)
- station_panel.offset_bottom = -16-(74 if narrow else 0)
+ var narrow := view.x<700 and view.y>view.x
+ var width := minf(480,view.x-32)
+ for item: Array in [[welcome,welcome_content],[menu_panel,menu_content]]:
+  var panel: PanelContainer = item[0]
+  var content: VBoxContainer = item[1]
+  panel.custom_minimum_size = Vector2(width,0)
+  for node in content.get_children():
+   if node is Label: node.custom_minimum_size.x = width-28
+  var height := minf(content.get_combined_minimum_size().y+28,view.y-32)
+  panel.offset_left = -width*0.5
+  panel.offset_right = width*0.5
+  panel.offset_top = -height*0.5
+  panel.offset_bottom = height*0.5
+  panel.size = Vector2(width,height)
+ objective.position = Vector2(16,16)
+ var objective_width := minf(360,view.x-124 if not narrow else view.x-32)
+ if view.y<420:
+  objective_width = minf(320,view.x-minf(416,maxf(164,view.x-180))-48)
+ navigation.visible = view.y>=420 or view.x>=760
+ if narrow: objective.position.y = 80
+ short_action.visible = view.y>=420
+ objective.custom_minimum_size.x = objective_width
+ objective.size.x = objective_width
+ for label: Label in [eyebrow,short_action,instruction,navigation,wind_label]:
+  label.custom_minimum_size.x = objective_width-28
+ objective_title.custom_minimum_size.x = 0
+ station_panel.custom_minimum_size.x = 0
+ var using_station: bool = deck.current>=0
+ var panel_width := minf(416,view.x-32)
+ if (touch_mode and not (narrow and using_station)) or view.y<420: panel_width = minf(416,maxf(164,view.x-180))
+ station_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT if (touch_mode and not (narrow and using_station)) or view.y<420 else Control.PRESET_CENTER_BOTTOM)
+ if (touch_mode and not (narrow and using_station)) or view.y<420:
+  station_panel.offset_left = -panel_width-16
+  station_panel.offset_right = -16
+ else:
+  station_panel.offset_left = -panel_width*0.5
+  station_panel.offset_right = panel_width*0.5
+ var panel_height := 196.0 if using_station else 76.0
+ station_panel.offset_top = -panel_height-16
+ station_panel.offset_bottom = -16
+ station_panel.size = Vector2(panel_width,panel_height)
+ touch_pad.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ touch_pad.offset_left = 16
+ touch_pad.offset_right = 140
+ touch_pad.offset_bottom = -228 if narrow and using_station else -16
+ touch_pad.offset_top = touch_pad.offset_bottom-124
+ touch_pad.visible = active and touch_mode and not menu_layer.visible
+ keyboard_hint.visible = active and not touch_mode and not menu_layer.visible and deck.current<0 and not (view.x<800 and deck.nearest()>=0)
+ keyboard_hint.custom_minimum_size.x = 224
+ keyboard_hint.size.x = 224
+ keyboard_hint.position = Vector2(16,view.y-76)
+ # The desktop hint moves above a full-width station card on narrow screens.
+ if narrow and using_station: keyboard_hint.position.y = view.y-218
+ menu_help.text = instruction.text+"\n\n"+wind_label.text if details_open else ("Move: thumb pad. Look: drag the open right side.
+At a fitting: tap Take hold, then hold its action buttons. Let go or walk away to leave." if touch_mode else "Move: WASD or arrows. Look: right-drag.
+R: take hold / let go. Q/E: haul/ease a rope.
+A/D: turn a held wheel. B: belay. Esc: menu.")
+func _settle_layout() -> void:
+ # Owned frame countdown: freeing/changing view cancels pending work automatically.
+ _layout_frames = 4
+ _menu_report_pending = menu_layer.visible
+func _toggle_details() -> void:
+ _open_menu(true)
+func _open_menu(explain: bool = false) -> void:
+ if not active: return
+ details_open = explain
+ menu_heading.text = "About this step" if explain else "Watch menu"
+ resume_button.text = "BACK TO SHIP" if explain else "RESUME"
+ touch_toggle.visible = not explain
+ restart_button.visible = not explain
+ for node in menu_extra: node.visible = not explain
+ menu_vr.visible = game.vr.supported and not explain
+ _keys.clear()
+ _move_keys.clear()
+ deck.stop_hands()
+ touch_pad.reset()
+ game.player.motion_input = Vector2.ZERO
+ game.player.movement_enabled = false
+ game.dragging = false
+ game.deck_look_touch = -1
+ menu_layer.visible = true
+ get_tree().paused = true
+ menu_scroll.scroll_vertical = 0
+ _layout()
+ _settle_layout()
+func _close_menu() -> void:
+ if menu_layer==null: return
+ get_tree().paused = false
+ menu_layer.visible = false
+ _layout_frames = 0
+ _menu_report_pending = false
+ _welcome_report_pending = false
+ details_open = false
+ if game!=null: game.player.movement_enabled = active and not game.god_mode
+ _layout_key = ""
+func _unhandled_input(event: InputEvent) -> void:
+ if menu_layer!=null and menu_layer.visible and event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:
+  _close_menu()
+  get_viewport().set_input_as_handled()
 func _panel(parent: Control,width: float) -> PanelContainer:
  var panel := PanelContainer.new()
  panel.custom_minimum_size.x = width
@@ -126,79 +265,148 @@ func _button(parent: Node,text: String,callback: Callable) -> Button:
  button.pressed.connect(callback)
  return button
 func _build_welcome() -> void:
- welcome = _panel(hud,490)
+ welcome = _panel(hud,480)
  welcome.set_anchors_preset(Control.PRESET_CENTER)
- welcome.offset_left = -245
- welcome.offset_right = 245
- welcome.offset_top = -180
- welcome.offset_bottom = 180
+ welcome_scroll = ScrollContainer.new()
+ welcome_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+ welcome.add_child(welcome_scroll)
  var column := VBoxContainer.new()
+ welcome_content = column
+ column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  column.add_theme_constant_override("separation",12)
- welcome.add_child(column)
- _label(column,"APEX  /  FIRST WATCH",452,26)
- _label(column,"Learn aboard the ship",452,20)
- _label(column,"Haul and belay a fore sheet, then walk aft and operate the steering wheel.\n\nWalk: arrows or bottom buttons. Look: right-drag or swipe the open right side. Follow the gold station labels.",452)
- welcome_start = _button(column,"START FIRST LESSON",start_lesson)
- welcome_vr = _button(column,"VR: CHECKING HEADSET",_enter_vr)
- _button(column,"OPEN WORKSHOP / FREE INSPECTION",enter_workshop)
- _label(column,"Development build · One deforming sail; remaining rigging is incomplete. Restart resets the practice ship.",452,13)
+ welcome_scroll.add_child(column)
+ _label(column,"APEX  /  AGE OF SAIL",420,14)
+ _label(column,"Your first watch",420,30)
+ _label(column,"Learn at the fittings: secure a sail's sheet, walk the deck, and take the wheel.",420,18)
+ welcome_start = _button(column,"START GUIDED LESSON",start_lesson)
+ welcome_vr = _button(column,"ENTER WITH VR",_enter_vr)
+ _label(column,"Desktop: WASD / arrows to walk, right-drag to look.
+Phone: move with the thumb pad, swipe right to look.",420,14)
+ _label(column,"Early training build · One sail has cloth physics; the full rig is still in development.",420,13)
 func _build_lesson() -> void:
  objective = _panel(hud,360)
- objective.position = Vector2(16,16)
  var column := VBoxContainer.new()
- column.add_theme_constant_override("separation",8)
+ column.add_theme_constant_override("separation",6)
  objective.add_child(column)
- objective_title = _label(column,"FIRST WATCH",332,20)
- instruction = _label(column,"",332)
- navigation = _label(column,"",332,14)
- wind_label = _label(column,"",332,14)
- var toolbar := HBoxContainer.new()
- toolbar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- toolbar.offset_left = -364
- toolbar.offset_right = -16
- toolbar.offset_top = 16
- hud.add_child(toolbar)
- lesson_vr = _button(toolbar,"VR",_enter_vr)
- _button(toolbar,"RESTART",start_lesson)
- _button(toolbar,"WORKSHOP",enter_workshop)
- var walking := HBoxContainer.new()
- walking.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- walking.offset_left = 16
- walking.offset_top = -68
- hud.add_child(walking)
- for item: Array in [["LEFT","◀"],["FORWARD","▲"],["BACK","▼"],["RIGHT","▶"]]:
-  var b := _button(walking,item[0],func(): pass)
-  b.custom_minimum_size = Vector2(70,52)
-  b.button_down.connect(game._walk_input.bind(item[1]))
-  b.button_up.connect(game._walk_release.bind(item[1]))
- station_panel = _panel(hud,292)
- station_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
- station_panel.offset_left = -308
- station_panel.offset_right = -16
- station_panel.offset_top = -224
- station_panel.offset_bottom = -16
+ eyebrow = _label(column,"FIRST WATCH",332,12)
+ var heading := HBoxContainer.new()
+ heading.add_theme_constant_override("separation",8)
+ column.add_child(heading)
+ objective_title = _label(heading,"",0,20)
+ objective_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ details_button = _button(heading,"?",_toggle_details)
+ details_button.custom_minimum_size = Vector2(48,48)
+ details_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+ details_button.tooltip_text = "Explain this step"
+ short_action = _label(column,"",332,15)
+ navigation = _label(column,"",332,13)
+ progress = ProgressBar.new()
+ progress.custom_minimum_size.y = 4
+ progress.show_percentage = false
+ progress.max_value = 6
+ column.add_child(progress)
+ instruction = _label(column,"",332,15)
+ instruction.visible = false
+ wind_label = _label(column,"",332,13)
+ wind_label.visible = false
+ lesson_menu = _button(hud,"MENU",_open_menu)
+ lesson_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+ lesson_menu.offset_left = -96
+ lesson_menu.offset_right = -16
+ lesson_menu.offset_top = 16
+ lesson_menu.offset_bottom = 64
+ lesson_menu.size_flags_horizontal = Control.SIZE_SHRINK_END
+ lesson_vr = lesson_menu # VR entry is an explicit option inside the menu.
+ keyboard_hint = _label(hud,"WASD / arrows · walk\nRight-drag · look\nR · take hold",224,13)
+ keyboard_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ touch_pad = preload("res://scripts/deck_touch_pad.gd").new()
+ hud.add_child(touch_pad)
+ touch_pad.moved.connect(_touch_motion)
+ station_panel = _panel(hud,0)
  var station_column := VBoxContainer.new()
  station_column.add_theme_constant_override("separation",6)
  station_panel.add_child(station_column)
- station_title = _label(station_column,"",264,18)
- station_status = _label(station_column,"",264,14)
- use_button = _button(station_column,"USE STATION [R]",_use_nearest)
+ station_header = HBoxContainer.new()
+ station_column.add_child(station_header)
+ station_title = _label(station_header,"",0,17)
+ station_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ leave_button = _button(station_header,"×",deck.release)
+ leave_button.custom_minimum_size = Vector2(48,48)
+ leave_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+ leave_button.tooltip_text = "Let go of this station (R)"
+ station_status = _label(station_column,"",0,14)
+ station_meter = Control.new()
+ station_meter.custom_minimum_size.y = 22
+ station_meter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ station_column.add_child(station_meter)
+ station_meter.draw.connect(_draw_rudder)
+ use_button = _button(station_column,"TAKE HOLD",_use_nearest)
  rope_actions = HBoxContainer.new()
+ rope_actions.add_theme_constant_override("separation",8)
  station_column.add_child(rope_actions)
  for item: Array in [["HAUL",-1.0],["EASE",1.0]]:
   var b := _button(rope_actions,item[0],func(): pass)
   b.button_down.connect(deck.pull.bind(item[1]))
   b.button_up.connect(deck.stop_hands)
- _button(rope_actions,"BELAY [B]",_belay)
+ var belay_button := _button(rope_actions,"BELAY",_belay)
+ var gold := StyleBoxFlat.new()
+ gold.bg_color = Color(0.38,0.30,0.13)
+ gold.set_corner_radius_all(4)
+ belay_button.add_theme_stylebox_override("normal",gold)
  wheel_actions = HBoxContainer.new()
+ wheel_actions.add_theme_constant_override("separation",8)
  station_column.add_child(wheel_actions)
- for item: Array in [["PORT [A]",-1.0],["STBD [D]",1.0]]:
+ for item: Array in [["PORT",-1.0],["STARBOARD",1.0]]:
   var b := _button(wheel_actions,item[0],func(): pass)
   b.button_down.connect(deck.pull.bind(item[1]))
   b.button_up.connect(deck.stop_hands)
- leave_button = _button(station_column,"LEAVE STATION [R]",deck.release)
+func _build_menu() -> void:
+ menu_layer = Control.new()
+ menu_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ hud.add_child(menu_layer)
+ var shade := ColorRect.new()
+ shade.color = Color(0.015,0.025,0.03,0.78)
+ shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ menu_layer.add_child(shade)
+ menu_panel = _panel(menu_layer,480)
+ menu_panel.set_anchors_preset(Control.PRESET_CENTER)
+ menu_scroll = ScrollContainer.new()
+ menu_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+ menu_panel.add_child(menu_scroll)
+ var column := VBoxContainer.new()
+ menu_content = column
+ column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ column.add_theme_constant_override("separation",10)
+ menu_scroll.add_child(column)
+ menu_heading = _label(column,"Watch menu",420,26)
+ resume_button = _button(column,"RESUME",_close_menu)
+ menu_help = _label(column,"",420,14)
+ touch_toggle = CheckButton.new()
+ touch_toggle.text = "Show touch controls"
+ touch_toggle.custom_minimum_size.y = 48
+ column.add_child(touch_toggle)
+ touch_toggle.toggled.connect(func(value: bool): touch_mode = value; touch_pad.reset(); _layout())
+ restart_button = _button(column,"RESTART LESSON",start_lesson)
+ menu_vr = _button(column,"ENTER VR",_enter_vr)
+ menu_extra.append(_button(column,"ENGINEERING TOOLS",enter_workshop))
+ menu_extra.append(_button(column,"RETURN TO START",_show_welcome))
+ menu_layer.visible = false
+func _touch_motion(value: Vector2) -> void:
+ if game==null or not active or menu_layer.visible: return
+ _motion_owned = true
+ game.player.motion_input = value
+func _draw_rudder() -> void:
+ var width := station_meter.size.x
+ var y := 11.0
+ station_meter.draw_line(Vector2(8,y),Vector2(width-8,y),Color(0.42,0.50,0.49),2)
+ for value in [-32.0,0.0,32.0]:
+  var x := remap(value,-32,32,8,width-8)
+  station_meter.draw_line(Vector2(x,y-5),Vector2(x,y+5),Color(0.75,0.78,0.72),1.5)
+ var x := remap(clampf(rad_to_deg(deck.mechanics.actual_rudder_angle),-32,32),-32,32,8,width-8)
+ station_meter.draw_circle(Vector2(x,y),5,Color(0.92,0.74,0.35))
 func _enter_vr() -> void:
  if not game.vr.supported: return
+ _close_menu()
  if not active: start_lesson()
  if active: game.vr.enter()
 func _engaged(index: int) -> bool:
@@ -211,6 +419,9 @@ func _engaged(index: int) -> bool:
    if (station.kind=="clew")==game.vr.clew_grips.has(id): return true
  return false
 func _show_welcome() -> void:
+ _close_menu()
+ deck.release()
+ touch_pad.reset()
  game.player.movement_enabled = false
  active = false
  workshop = false
@@ -226,6 +437,8 @@ func _hide_workshop() -> void:
  for node in [game.fly_toggle,game.pin_button,game.photo_ui,game.restore_hud_button,game.coop_toggle,game.vr_button]: node.visible = false
  game.spatial_qa.export_button.visible = false
 func enter_workshop() -> void:
+ _close_menu()
+ touch_pad.reset()
  game.player.movement_enabled = not game.god_mode
  deck.release()
  active = false
@@ -245,6 +458,7 @@ func enter_workshop() -> void:
   game.normal_ui.add_child(b)
   b.pressed.connect(start_lesson)
 func start_lesson() -> void:
+ _close_menu()
  if game.session.active:
   game.coop_status.text = "Leave co-op before starting this solo lesson."
   return
@@ -253,6 +467,9 @@ func start_lesson() -> void:
  game.player.movement_enabled = true
  deck.release()
  _keys.clear()
+ _move_keys.clear()
+ _motion_owned = false
+ touch_pad.reset()
  game.active_walk_buttons.clear()
  game._update_walk_vector()
  game._brace_stop()
@@ -294,8 +511,14 @@ func start_lesson() -> void:
  active = true
  workshop = false
  hud.visible = true
- for node in hud.get_children(): node.visible = node!=welcome
+ for node in hud.get_children(): node.visible = node!=welcome and node!=menu_layer
+ details_open = false
+ instruction.visible = false
+ wind_label.visible = false
+ details_button.text = "?"
+ _layout_key = ""
  marker.visible = true
+ _settle_layout()
  _hide_workshop()
  _log_state()
 func _use_nearest() -> void:
@@ -305,15 +528,39 @@ func _belay() -> void:
  deck.belay()
 func _station_changed() -> void:
  _keys.clear()
+ _move_keys.clear()
+ if _motion_owned: game.player.motion_input = Vector2.ZERO
+ _motion_owned = false
+ _layout_key = ""
  if active: _log_state()
 func release_event(event: InputEvent) -> void:
  if not active: return
+ if event is InputEventScreenTouch:
+  if event.pressed and not touch_mode:
+   touch_mode = true
+   touch_toggle.button_pressed = true
+   _layout_key = ""
+  if event.pressed and touch_pad.capture_screen_touch(event.index,event.position):
+   get_viewport().set_input_as_handled()
+  elif not event.pressed: touch_pad.release_finger(event.index)
+ if event is InputEventScreenDrag and touch_pad.drag_screen_touch(event.index,event.position):
+  get_viewport().set_input_as_handled()
+ if event is InputEventKey and not event.pressed:
+  _move_keys.erase(event.keycode)
+  _update_keyboard_walk()
  if event is InputEventKey and not event.pressed and event.keycode in [KEY_A,KEY_D,KEY_Q,KEY_E]:
   _keys.erase(event.keycode)
   _keyboard_pull()
 func handle_input(event: InputEvent) -> bool:
  if not active: return not workshop and event is InputEventKey
  if not event is InputEventKey: return false
+ if menu_layer.visible: return true
+ if event.pressed and event.keycode==KEY_ESCAPE: _open_menu(); return true
+ if deck.current<0 and event.keycode in [KEY_W,KEY_A,KEY_S,KEY_D]:
+  if event.pressed: _move_keys[event.keycode] = true
+  else: _move_keys.erase(event.keycode)
+  _update_keyboard_walk()
+  return true
  if event.echo: return true
  if event.keycode in [KEY_A,KEY_D,KEY_Q,KEY_E]:
   if event.pressed: _keys[event.keycode] = true
@@ -324,6 +571,15 @@ func handle_input(event: InputEvent) -> bool:
   if event.keycode==KEY_R: _use_nearest(); return true
   if event.keycode==KEY_B: _belay(); return true
  return event.keycode in [KEY_W,KEY_S,KEY_F,KEY_P]
+func _update_keyboard_walk() -> void:
+ var axis := Vector2.ZERO
+ if _move_keys.has(KEY_A): axis.x -= 1
+ if _move_keys.has(KEY_D): axis.x += 1
+ if _move_keys.has(KEY_W): axis.y -= 1
+ if _move_keys.has(KEY_S): axis.y += 1
+ if axis.length()>0.01 or _motion_owned:
+  _motion_owned = axis.length()>0.01
+  game.player.motion_input = axis.normalized() if _motion_owned else touch_pad.axis
 func _keyboard_pull() -> void:
  var value := 0.0
  if deck.current>=0:
@@ -338,13 +594,12 @@ func _advance(value: int) -> void:
  _log_state()
 func _process(delta: float) -> void:
  if game==null: return
- for b: Button in [welcome_vr,lesson_vr]:
-  b.disabled = not game.vr.supported
-  b.text = "ENTER VR" if game.vr.supported else ("VR UNAVAILABLE" if b==lesson_vr else "VR: HEADSET BROWSER REQUIRED")
-  b.tooltip_text = "Open in a WebXR-capable headset browser. Desktop and touch controls remain available."
+ _tick_layout()
+ welcome_vr.visible = game.vr.supported and welcome.visible
+ menu_vr.visible = game.vr.supported and not details_open
  if workshop: return
  _hide_workshop()
- if not active: return
+ if not active or menu_layer.visible: return
  var lines: Array = deck.mechanics.cloth.lines
  match stage:
   0:
@@ -373,13 +628,22 @@ func _process(delta: float) -> void:
   text[3] = "Go aft, up the central quarterdeck stairs. Squeeze the wheel rim to take hold. Thumbstick: walk."
   text[4] = "Squeeze and turn the wheel clockwise until the actual rudder reaches 5 degrees to starboard."
   text[5] = "Turn back toward port. Center the actual rudder within 2 degrees. Hold it there; the wheel can backdrive."
-  game.vr.training_prompt = titles[stage]+"\n"+text[stage]
- objective_title.text = titles[stage]
+  game.vr.training_prompt = titles[stage]+"\n"+["Find the port fore-sheet pin.","Grip; pull away from the block to haul.","Trigger beside the pin to belay.","Go aft and up the stairs to the wheel.","Grip and turn clockwise to starboard.","Counter-steer; center within 2 degrees.","Introduction complete; practice freely."][stage]
+ var compact_titles := ["Find the fore sheet","Haul the sheet","Belay the sheet","Take the wheel","Turn to starboard","Center the rudder","First watch complete"]
+ var actions := ["Walk to the marked port pin.","Hold Haul to take in 12 cm.","Secure the sheet on its pin.","Go aft, up the central stairs.","Hold Starboard until rudder reaches 5°.","Counter-steer; hold within 2°.","Practice at any of the five stations."]
+ eyebrow.text = "FIRST WATCH  ·  %d OF 6"%mini(stage+1,6) if stage<6 else "INTRODUCTION COMPLETE"
+ objective_title.text = compact_titles[stage]
+ short_action.text = actions[stage]
+ progress.value = stage
  instruction.text = text[stage]
  var station: Dictionary = deck.stations[target_index]
  var p: Vector3 = game.boat.to_local(game.player.global_position)
  var distance := Vector2(p.x-station.point.x,p.z-station.point.z).length()
- navigation.text = ("%.1f m to %s"%[distance,station.label]) if stage<6 else "Free practice · RESTART repeats this introduction."
+ navigation.text = "%s  ·  %.1f m"%[station.label,distance]
+ if stage==1: navigation.text = "Taken in: %.0f / 12 cm"%[maxf(0,starting_sheet-float(lines[0].length))*100]
+ elif stage==2: navigation.text = "Belay holds the rope after you let go."
+ elif stage in [4,5]: navigation.text = "Actual rudder: %+.1f°"%rad_to_deg(deck.mechanics.actual_rudder_angle)
+ elif stage==6: navigation.text = "Open the menu to repeat the introduction."
  marker.position = station.point+Vector3.UP*0.95
  marker.text = ("PORT FORE SHEET" if target_index==1 else "STEERING WHEEL")+"\n%.1f m"%distance
  marker.visible = stage<6
@@ -387,8 +651,14 @@ func _process(delta: float) -> void:
  var incoming := -relative
  var angle := rad_to_deg(acos(clampf(Vector3.FORWARD.dot(incoming.normalized()),-1,1)))
  var side := "STARBOARD" if incoming.x>=0 else "PORT"
- wind_label.text = "WIND FROM %s · %.0f° off bow · %.1f m/s\nBow = front / Port = left / Starboard = right"%[side,angle,relative.length()]
+ wind_label.text = "Wind from %s · %.0f° off bow · %.1f m/s\nPort = left / Starboard = right"%[side.to_lower(),angle,relative.length()]
  _update_station_panel()
+ var layout_key := "%s/%s/%s"%[touch_mode,deck.current>=0,deck.nearest()>=0]
+ if layout_key!=_layout_key:
+  _layout_key = layout_key
+  objective.reset_size()
+  _layout()
+  _settle_layout()
  log_clock += delta
  if log_clock>=0.5:
   log_clock = 0.0
@@ -397,27 +667,44 @@ func _update_station_panel() -> void:
  var nearby: int = deck.nearest()
  var current: int = deck.current
  var selected: int = current if current>=0 else nearby
+ station_panel.visible = selected>=0
  use_button.visible = current<0
  use_button.disabled = nearby<0
- leave_button.visible = current>=0
+ station_header.visible = current>=0
+ station_status.visible = current>=0
+ station_meter.visible = current>=0 and deck.stations[current].kind=="helm"
  rope_actions.visible = current>=0 and deck.stations[current].kind!="helm"
  wheel_actions.visible = current>=0 and deck.stations[current].kind=="helm"
- station_title.text = deck.stations[selected].label if selected>=0 else "Walk to a fitting"
- station_status.text = "Stand beside the gold marker.\nSwipe the open right side to look."
- if selected>=0:
-  var station: Dictionary = deck.stations[selected]
-  if station.kind=="helm":
-   station_status.text = "Wheel %.0f° / Rudder %.1f°\nSteering lines %.0f / %.0f N"%[rad_to_deg(deck.mechanics.helm.wheel_angle),rad_to_deg(deck.mechanics.actual_rudder_angle),deck.mechanics.port_line_tension,deck.mechanics.starboard_line_tension]
-  else:
-   var rig: RefCounted = deck.mechanics.cloth if station.kind=="clew" else deck.mechanics.brace
-   var line: Dictionary = rig.lines[station.index]
-   station_status.text = "%s · %.2f m · %.0f N\n%s"%[["BELAYED","IN HAND","RUNNING FREE","CUT"][int(line.mode)],line.length,line.tension,"Q: haul / E: ease / B: belay" if current>=0 else "Use this pin to work its rope."]
+ if selected<0: return
+ var station: Dictionary = deck.stations[selected]
+ station_title.text = station.label.replace("fore clew","fore")
+ use_button.text = "TAKE WHEEL" if station.kind=="helm" else ("TAKE SHEET" if station.kind=="clew" else "TAKE BRACE")
+ if not touch_mode: use_button.text += "  [R]"
+ if station.kind=="helm":
+  station_status.text = "Rudder %+.1f° · %s"%[rad_to_deg(deck.mechanics.actual_rudder_angle),"Starboard" if deck.mechanics.actual_rudder_angle>0 else "Port"]
+  station_meter.queue_redraw()
+ else:
+  var rig: RefCounted = deck.mechanics.cloth if station.kind=="clew" else deck.mechanics.brace
+  var line: Dictionary = rig.lines[station.index]
+  station_status.text = "%s · %.2f m · %.0f N"%[["Belayed","In hand","Running free","Cut"][int(line.mode)],line.length,line.tension]
+ keyboard_hint.text = "WASD / arrows · walk\nRight-drag · look\nR · take hold"
 func _log_state() -> void:
  if not active: return
  var p: Vector3 = game.boat.to_local(game.player.global_position)
  var state := {"stage":stage,"station":deck.current,"nearby":deck.nearest(),"player":[p.x,p.y,p.z],"yaw":game.view_yaw,"sheet_m":deck.mechanics.cloth.lines[0].length,"sheet_mode":deck.mechanics.cloth.lines[0].mode,"rudder_deg":rad_to_deg(deck.mechanics.actual_rudder_angle),"use":[use_button.get_global_rect().get_center().x,use_button.get_global_rect().get_center().y],"force_trial":game.boat.force_trial}
+ state["menu_button"] = _center(lesson_menu)
+ state["touch_mode"] = touch_mode
+ state["touch_owner"] = touch_pad.finger_id
+ state["look_owner"] = game.deck_look_touch
+ state["move_axis"] = [game.player.motion_input.x,game.player.motion_input.y]
+ state["hold_buttons"] = [_center(rope_actions.get_child(0)),_center(rope_actions.get_child(1)),_center(rope_actions.get_child(2))]
  print("APEX LESSON STATE ",JSON.stringify(state))
+func _center(control: Control) -> Array:
+ var point := control.get_global_rect().get_center()
+ return [point.x,point.y]
 func _notification(what: int) -> void:
  if what==NOTIFICATION_APPLICATION_FOCUS_OUT and deck!=null:
   _keys.clear()
+  _move_keys.clear()
+  touch_pad.reset()
   deck.stop_hands()

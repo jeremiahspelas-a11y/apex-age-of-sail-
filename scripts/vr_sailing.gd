@@ -62,11 +62,11 @@ func _started() -> void:
  training_hint = hint
  hint.text = "Grip: wheel / rope tail\nTrigger at pin: belay\nThumbstick: walk"
  hint.font_size = 20
- hint.pixel_size = 0.001
+ hint.pixel_size = 0.0015
  hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
  hint.width = 470
- hint.position = Vector3(0,-0.26,-0.9)
- camera.add_child(hint)
+ hint.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+ game.boat.add_child(hint)
  _place_origin()
 func _ended() -> void:
  _release_all()
@@ -77,6 +77,7 @@ func _ended() -> void:
  game.player.read_keyboard = true
  game.player.motion_input = Vector2.ZERO
  game.hud_layer.visible = true
+ if is_instance_valid(training_hint): training_hint.queue_free()
  for child in camera.get_children(): child.queue_free()
  training_hint = null
  training_prompt = ""
@@ -192,6 +193,11 @@ func _physics_process(delta: float) -> void:
   var rig: Node3D = game.boat.get_node("Mechanisms")
   training_hint.text = feedback_text if feedback_left>0 else (training_prompt if not training_prompt.is_empty() else "Grip: wheel / rope tail | Trigger at pin: belay | Thumbstick: walk")
   training_hint.text += "\nRudder %.1f deg | Fore sheets %.0f / %.0f N"%[rad_to_deg(rig.actual_rudder_angle),rig.cloth.lines[0].tension,rig.cloth.lines[1].tension]
+  var point: Vector3 = rig.wheel.position
+  if game.lesson!=null and game.lesson.active:
+   point = game.lesson.deck.stations[game.lesson.target_index].point
+  training_hint.position = point+Vector3.UP*0.65
+  training_hint.visible = game.player.global_position.distance_to(training_hint.global_position)<5.0
  for id in range(16):
   if interface.is_input_source_active(id): _controller(id)
  for id: int in controllers.keys():

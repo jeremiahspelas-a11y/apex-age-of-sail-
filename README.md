@@ -2,7 +2,7 @@
 
 Godot 4.7.2 sailing project. The current focus is a **first-person sailing trainer** that exercises reusable ship mechanics. APEX's wider game remains the long-term goal. Keep the working steering wheel and a coherent, historically inspired ship; exact period reconstruction is secondary to understandable operation.
 
-**START FIRST LESSON** introduces the port fore sheet and steering wheel through walk-up station controls, with optional **ENTER VR** on supported headset browsers. [First Watch controls and current limits](docs/first-watch-lesson.md). Open **WORKSHOP** for the existing inspection and engineering controls.
+**START GUIDED LESSON** introduces the port fore sheet and steering wheel through walk-up station controls, with optional **ENTER VR** on supported headset browsers. [First Watch controls and current limits](docs/first-watch-lesson.md). Use **MENU → ENGINEERING TOOLS** for inspection and the development controls.
 
 In the workshop, start on deck, walk with the arrow keys or on-screen arrows, and look with right-mouse drag or a drag on the right side of the touchscreen. A/D operate the helm, W/S change effective sail area, and Q/E trim the yards. F switches between the deck and fly inspection; P hides/restores the HUD. Buttons provide the same sailing commands on touchscreens.
 
