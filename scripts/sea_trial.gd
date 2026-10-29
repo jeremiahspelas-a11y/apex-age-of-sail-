@@ -213,6 +213,7 @@ func _build_session_controls(canvas: CanvasLayer,root: Control) -> void:
  session_notice.add_theme_constant_override("outline_size",3)
  root.add_child(session_notice)
  session.feedback.connect(func(message: String):
+  print("APEX COOP FEEDBACK ",message)
   coop_status.text = message
   session_notice.text = message
   notice_timer = 3.0)

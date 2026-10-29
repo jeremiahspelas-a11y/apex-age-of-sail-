@@ -4,6 +4,7 @@ extends Node
 signal feedback(message: String)
 const PlayerWalk = preload("res://scripts/player_walk.gd")
 const MAX_CREW := 20
+const HANDSHAKE_TIMEOUT_SECONDS := 15.0 # allow slow browser startup without unbounded pending peers
 var game: Node3D
 var active := false
 var connected := false
@@ -36,6 +37,7 @@ func host(port: int = 9080) -> Error:
  if OS.has_feature("web"): return ERR_UNAVAILABLE
  if active: return ERR_ALREADY_IN_USE
  var peer := WebSocketMultiplayerPeer.new()
+ peer.handshake_timeout = HANDSHAKE_TIMEOUT_SECONDS
  var error := peer.create_server(port)
  if error!=OK: return error
  multiplayer.multiplayer_peer = peer
@@ -49,6 +51,7 @@ func join(url: String) -> Error:
  if active: return ERR_ALREADY_IN_USE
  if not (url.begins_with("ws://") or url.begins_with("wss://")): return ERR_INVALID_PARAMETER
  var peer := WebSocketMultiplayerPeer.new()
+ peer.handshake_timeout = HANDSHAKE_TIMEOUT_SECONDS
  var error := peer.create_client(url)
  if error!=OK: return error
  multiplayer.multiplayer_peer = peer
