@@ -22,7 +22,9 @@ func run() -> void:
   weather.set_process(false)
   weather.state.wind = Vector3(0,0,-3)
   game.boat.wind_world = weather.state.wind
-  for frame in 700: await physics_frame
+  for frame in 1200:
+   await physics_frame
+   if frame>300 and session.accepted>=3 and session.rejected>=2 and session.avatars.is_empty(): break
   check(session.accepted>=3,"Host must accept remote helm and brace commands")
   check(session.rejected>=2,"Host must reject occupied stations and invalid commands")
   check(session.stations.is_empty(),"Disconnect must release station ownership")
@@ -50,14 +52,23 @@ func run() -> void:
    session.send_action("port")
    session.send_action("brace_free",0.0,1)
    session.send_action("brace_pull",-1.0,0)
+   for frame in 180:
+    await physics_frame
+    if rig.brace.lines[0].mode==1 and session.stations.get("brace_port",0)==session.multiplayer.get_unique_id(): break
+   check(rig.brace.lines[0].mode==1 and session.stations.get("brace_port",0)==session.multiplayer.get_unique_id(),"Host must confirm the held brace before the receiver is stalled")
    # Deliberately stop polling, like a stalled browser/GPU. Old snapshots must not
    # flood its WebSocket buffer while the host keeps simulating.
    OS.delay_msec(2600)
    for frame in 120: await physics_frame
+   var before_belay: int = session.last_tick
    session.send_action("brace_belay",0.0,0)
-   for frame in 12: await physics_frame
+   # Local physics frames are not an acknowledgement from the host, especially
+   # after a stalled receiver. Require a newer authoritative belayed snapshot.
+   for frame in 180:
+    await physics_frame
+    if session.last_tick>before_belay and rig.brace.lines[0].mode==0: break
    check(messages.any(func(m: String) -> bool: return "Station is held" in m),"Competing helm input must be denied")
-   check(rig.brace.lines[0].mode==0,"Remote belaying must be reflected in authoritative state")
+   check(session.last_tick>before_belay and rig.brace.lines[0].mode==0,"Remote belaying must be reflected in a newer authoritative state")
    check(session.latest.weather.has("state"),"Late-joining clients must receive current weather")
    var initial_length: float = rig.cloth.lines[0].length
    session.send_action("clew_pull",-1.0,0)

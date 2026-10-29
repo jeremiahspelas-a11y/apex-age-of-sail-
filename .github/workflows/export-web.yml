@@ -124,6 +124,12 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/vr_input_test.gd 2>&1 | tee vr-input-test.log
           if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" vr-input-test.log; then exit 1; fi
           grep -q "APEX VR INPUT TEST PASS" vr-input-test.log
+      - name: Verify closing WebSocket send guard
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/coop_transport_test.gd 2>&1 | tee coop-transport-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" coop-transport-test.log; then exit 1; fi
+          grep -q "APEX COOP TRANSPORT TEST PASS" coop-transport-test.log
       - name: Verify co-op host, clients and stalled receiver
         run: python3 tests/run_coop_test.py ./Godot_v4.7.2-stable_linux.x86_64
       - name: Browser graphics smoke test and screenshots

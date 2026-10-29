@@ -75,3 +75,5 @@ Native suites cover construction, Spatial QA, force trial, deck trainer, loaded 
 | Education/resource | Documented controls and reusable numerical cores | Lessons validated by sailors, complete sample vessel, asset/dependency/license release inventory |
 
 The [first sail-clew sheets and deforming membrane](sail-membrane-trial.md) are now integrated. The next dependencies are cloth/spar contact, tacks and expansion through the complete running rig. Public hosting and headset validation are separate delivery gates. A successful build alone does not mark these complete.
+
+Transport lifecycle: application RPCs now require the underlying WebSocket to be open, because SceneMultiplayer may briefly retain a closing peer ID. `coop_transport_test.gd` exercises that state with actual loopback sockets. The stalled-receiver test waits for host-confirmed brace ownership before its pause and a newer belayed snapshot afterward, preserving snapshot backpressure and finite command ownership.

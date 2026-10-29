@@ -161,10 +161,18 @@ func _rate_ok(id: int) -> bool:
  rate.count += 1
  rates[id] = rate
  return rate.count<=50
+func _transport_open(id: int) -> bool:
+ # SceneMultiplayer can retain an ID until its next poll after WebSocket close.
+ # Do not queue RPCs to a closing socket just because the ID is still present.
+ if not active or not multiplayer.get_peers().has(id): return false
+ var transport := multiplayer.multiplayer_peer as WebSocketMultiplayerPeer
+ if transport==null: return false
+ var socket := transport.get_peer(id)
+ return socket!=null and socket.get_ready_state()==WebSocketPeer.STATE_OPEN
 func send_action(action: String,value: float = 0.0,index: int = 0) -> void:
  if not active: return
  if is_host: _apply_action(1,action,value,index)
- elif connected: request_action.rpc_id(1,action,value,index)
+ elif connected and _transport_open(1): request_action.rpc_id(1,action,value,index)
 @rpc("any_peer","call_remote","reliable")
 func request_action(action: String,value: float,index: int) -> void:
  if not is_host: return
@@ -175,7 +183,7 @@ func request_action(action: String,value: float,index: int) -> void:
 func _deny(id: int,message: String) -> bool:
  rejected += 1
  if id==1: feedback.emit(message)
- else: command_feedback.rpc_id(id,message)
+ elif _transport_open(id): command_feedback.rpc_id(id,message)
  return false
 func _apply_action(id: int,action: String,value: float,index: int) -> bool:
  if not is_finite(value): return _deny(id,"Invalid input")
@@ -248,11 +256,12 @@ func _physics_process(delta: float) -> void:
    send_clock = 0.0
    var data: Dictionary = {}
    for id: int in multiplayer.get_peers():
+    if not _transport_open(id): continue
     if int(pending_snapshots.get(id,-1))!=-1: continue
     if data.is_empty(): data = capture_world()
     pending_snapshots[id] = data.tick
     receive_world.rpc_id(id,data)
- elif connected:
+ elif connected and _transport_open(1):
   jump_queued = jump_queued or Input.is_action_just_pressed("ui_accept")
   Ocean.time += delta
   game.boat.global_transform = game.boat.global_transform.interpolate_with(target_pose,1.0-exp(-delta*18.0))
@@ -281,7 +290,7 @@ func receive_world(data: Dictionary) -> void:
   feedback.emit("Incompatible co-op version")
   stop()
   return
- acknowledge_world.rpc_id(1,int(data.tick))
+ if _transport_open(1): acknowledge_world.rpc_id(1,int(data.tick))
  if int(data.tick)<=last_tick: return
  last_tick = data.tick
  received_packets += 1
