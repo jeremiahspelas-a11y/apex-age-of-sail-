@@ -249,6 +249,13 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
   var hinge_moment := (Vector3(0,0,0.30)).cross(state.transform.basis.transposed()*force).y
   var steering: Dictionary = mechanism.step_loaded_steering(state.step,hinge_moment)
   state.apply_torque((point-state.transform*center_of_mass).cross(force)-state.transform.basis.y*mechanism.rudder_inertia*steering.rudder_acceleration-state.transform.basis.z*mechanism.wheel_inertia*steering.wheel_acceleration)
+ if mechanism!=null and trial_ticks%15==0:
+  for line: Dictionary in mechanism.cloth.lines:
+   if line.mode==1 and absf(line.pull)>0.1:
+    var cloth_sample: Dictionary = mechanism.cloth_report()
+    cloth_sample["physics_tick"] = trial_ticks
+    print("APEX CLOTH SAMPLE ",JSON.stringify(cloth_sample))
+    break
  if trial_ticks == 120:
   print("APEX FORCE SAMPLE ",JSON.stringify(force_trial_report()))
 

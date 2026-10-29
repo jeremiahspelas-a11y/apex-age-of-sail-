@@ -535,4 +535,4 @@ func cloth_report() -> Dictionary:
  for line: Dictionary in cloth.lines:
   var point := vessel.to_local(cloth.points[line.node])
   local_clews.append([point.x,point.y,point.z])
- return {"mass_kg":cloth.canvas_mass,"area_m2":cloth.area,"nodes":cloth.points.size(),"clews":local_clews,"lengths_m":[cloth.lines[0].length,cloth.lines[1].length],"tensions_n":[cloth.lines[0].tension,cloth.lines[1].tension]}
+ return {"mass_kg":cloth.canvas_mass,"area_m2":cloth.area,"nodes":cloth.points.size(),"clews":local_clews,"lengths_m":[cloth.lines[0].length,cloth.lines[1].length],"tensions_n":[cloth.lines[0].tension,cloth.lines[1].tension],"modes":[cloth.lines[0].mode,cloth.lines[1].mode],"pulls":[cloth.lines[0].pull,cloth.lines[1].pull],"hand_forces_n":[cloth.lines[0].hand_force,cloth.lines[1].hand_force]}
