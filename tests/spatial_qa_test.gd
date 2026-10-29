@@ -26,11 +26,18 @@ func run() -> void:
  qa.setup(ship, view, layer)
  await process_frame
  var center := root.get_visible_rect().size * 0.5
+ # Runtime mesh replacement must refresh triangle geometry (cloth/rope adapters do this).
+ var replacement := BoxMesh.new()
+ replacement.size = Vector3(1,1,3)
+ mesh.mesh = replacement
  qa.begin_pin()
  qa.pick(Vector2.ZERO)
  check(qa.waiting_for_point and qa.selected.is_empty(), "A miss must allow another tap")
  qa.pick(center)
  check(not qa.waiting_for_point and not qa.selected.is_empty(), "Center ray must hit the box triangle")
+ check(qa.selected.local.z>1.4,"Picking must use replaced mesh faces, not stale original triangles")
+ for frame in 4: await process_frame
+ check(root.gui_get_focus_owner()==qa.editor,"Picking a surface must focus the description after layout")
  qa.editor.text = "   "
  qa._save_note()
  check(qa.notes.is_empty() and qa.is_active(), "Blank notes must not save")
@@ -51,6 +58,8 @@ func run() -> void:
  var cancelled: MeshInstance3D = qa.preview
  qa._cancel()
  check(not qa.is_active() and not cancelled.visible and qa.notes.size() == 1, "Cancel must remove only the unsaved preview")
+ for frame in 4: await process_frame
+ check(root.gui_get_focus_owner()!=qa.editor,"Cancel must not allow pending layout focus to reopen the editor")
  qa._export_notes()
  var report: Variant = JSON.parse_string(FileAccess.get_file_as_string("user://apex-spatial-qa.json"))
  check(report != null and report.schema == "apex-spatial-qa-v1" and report.notes.size() == 1, "JSON export must contain saved notes only")

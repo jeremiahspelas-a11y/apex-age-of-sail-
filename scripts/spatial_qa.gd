@@ -11,6 +11,7 @@ var panel: Control
 var hint: Label
 var export_button: Button
 var save_button: Button
+var _focus_frames := 0
 
 func setup(ship: Node3D, view: Camera3D, ui: CanvasLayer) -> void:
  boat = ship
@@ -56,10 +57,8 @@ func setup(ship: Node3D, view: Camera3D, ui: CanvasLayer) -> void:
 func _collect_meshes(node: Node) -> void:
  if node is MeshInstance3D:
   var mi := node as MeshInstance3D
-  if mi.mesh != null:
-   var faces := mi.mesh.get_faces()
-   if faces.size() > 0:
-    mesh_cache.append({"node": mi, "faces": faces})
+  var faces := mi.mesh.get_faces() if mi.mesh!=null else PackedVector3Array()
+  mesh_cache.append({"node":mi,"faces":faces,"resource":mi.mesh})
  for child in node.get_children():
   _collect_meshes(child)
 
@@ -74,6 +73,7 @@ func begin_pin() -> void:
  editor.text = ""
  editor.visible = false
  save_button.disabled = true
+ print("APEX SPATIAL QA WAITING")
 
 var selected: Dictionary = {}
 
@@ -87,7 +87,7 @@ func pick(screen_position: Vector2) -> void:
  selected = {}
  for item in mesh_cache:
   var mi: MeshInstance3D = item["node"]
-  if not mi.is_visible_in_tree():
+  if not is_instance_valid(mi) or mi.mesh==null or not mi.is_visible_in_tree():
    continue
   var inverse := mi.global_transform.affine_inverse()
   var local_origin := inverse * origin
@@ -95,6 +95,9 @@ func pick(screen_position: Vector2) -> void:
   var bounds := mi.mesh.get_aabb()
   if bounds.intersects_ray(local_origin, local_direction) == null:
    continue
+  if mi.mesh!=item.resource:
+   item.resource = mi.mesh
+   item.faces = mi.mesh.get_faces()
   var faces: PackedVector3Array = item["faces"]
   for i in range(0, faces.size(), 3):
    var hit: Variant = Geometry3D.ray_intersects_triangle(local_origin, local_direction, faces[i], faces[i+1], faces[i+2])
@@ -113,6 +116,21 @@ func pick(screen_position: Vector2) -> void:
  save_button.disabled = false
  hint.text = "Selected: " + (selected["mesh"] as MeshInstance3D).name
  _show_preview()
+ _focus_frames = 2
+ set_process(true)
+
+func _process(_delta: float) -> void:
+ if _focus_frames<=0:
+  set_process(false)
+  return
+ _focus_frames -= 1
+ if _focus_frames>0: return
+ set_process(false)
+ if not panel.is_visible_in_tree() or waiting_for_point or selected.is_empty(): return
+ editor.grab_focus()
+ var save_center := save_button.get_global_rect().get_center()
+ var export_center := export_button.get_global_rect().get_center()
+ print("APEX SPATIAL QA EDITOR READY ",JSON.stringify({"save_center":[save_center.x,save_center.y],"export_center":[export_center.x,export_center.y]}))
 
 var preview: MeshInstance3D
 func _show_preview() -> void:
@@ -177,6 +195,8 @@ func _export_notes() -> void:
  hint.text = "Exported " + str(notes.size()) + " notes"
 
 func _cancel() -> void:
+ _focus_frames = 0
+ set_process(false)
  waiting_for_point = false
  panel.visible = false
  selected = {}
