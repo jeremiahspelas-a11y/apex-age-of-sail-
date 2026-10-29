@@ -1,5 +1,19 @@
 extends RigidBody3D
 ## Stable prototype displacement model. Bow -Z, starboard +X.
+const Hydrostatics = preload("res://scripts/hull_hydrostatics.gd")
+const RigPressure = preload("res://scripts/rig_pressure_load.gd")
+const Refit = preload("res://scripts/ship_refit.gd")
+@export var force_trial := false
+@export var trial_dry_mass_kg := 80000.0 # rigid assembly excluding the separately integrated fore canvas; provisional
+@export var trial_center_of_mass := Vector3(0,-0.60,0)
+var hydro: RefCounted
+var rig_pressure: RefCounted
+var hydro_report: Dictionary = {}
+var rig_report: Dictionary = {}
+var trial_ticks := 0
+var _trial_requested := false
+var _last_trial_mass := -1.0
+var _last_trial_com := Vector3.INF
 @export var sail_area_m2 := 95.0
 @export var sail_drag_coefficient := 0.6
 @export var water_density := 1025.0
@@ -48,12 +62,18 @@ func _ready() -> void:
  rotation.y = _controlled_heading
  center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
  center_of_mass = Vector3(0,-1.2,0)
+ if force_trial:
+  force_trial = false
+  set_force_trial.call_deferred(true)
 func _height(x: float,z: float) -> float:
  if ocean != null and ocean.has_method("get_height"):
   return ocean.get_height(x,z)
  return 0.0
 func _physics_process(delta: float) -> void:
  elapsed += delta
+ if force_trial:
+  _update_trial_mass()
+  return
  if freeze:
   var integrity := get_node_or_null("ShipIntegrity")
   var flooding: float = integrity.flooded_fraction() if integrity != null else 0.0
@@ -138,3 +158,127 @@ func _physics_process(delta: float) -> void:
  var tilt_omega := TAU * roll_pitch_frequency
  var angular_correction := correction_axis * tilt_omega * tilt_omega - Vector3(angular_velocity.x,0.0,angular_velocity.z) * (2.0 * roll_pitch_damping * tilt_omega)
  apply_torque(angular_correction * mass * 0.45)
+
+func prepare_force_trial() -> void:
+ if hydro == null:
+  hydro = Hydrostatics.new()
+  hydro.build_from_sections(Refit.hull_profile,AABB(Vector3(-3.45,-2.2,-13),Vector3(6.9,3.11,26.2)))
+  rig_pressure = RigPressure.new()
+  rig_pressure.bind(get_node("Mechanisms"))
+
+func set_force_trial(enabled: bool) -> void:
+ # Transition once inside the direct-state callback; no transform driving while active.
+ prepare_force_trial()
+ force_trial = enabled
+ trial_ticks = 0
+ _trial_requested = true
+ freeze = not enabled
+ axis_lock_angular_x = not enabled
+ axis_lock_angular_z = not enabled
+ if enabled:
+  get_node("Mechanisms").reset_braces()
+  get_node("Mechanisms").set_cloth_active(true)
+  linear_damp = 0.0
+  angular_damp = 0.0
+  _last_trial_mass = -1.0
+  _update_trial_mass()
+ else:
+  get_node("Mechanisms").set_cloth_active(false)
+  mass = water_density*hull_displacement_m3
+  inertia = Vector3.ZERO
+  center_of_mass = Vector3(0,-1.2,0)
+  linear_damp = 0.12
+  angular_damp = 1.5
+  _controlled_heading = rotation.y
+  _controlled_speed = 0.0
+  _yaw_velocity = 0.0
+  linear_velocity = Vector3.ZERO
+  angular_velocity = Vector3.ZERO
+ sleeping = false
+ print("APEX FORCE TRIAL ","ON" if enabled else "OFF")
+
+func _update_trial_mass() -> void:
+ var total := trial_dry_mass_kg
+ var weighted := trial_center_of_mass*total
+ var integrity := get_node_or_null("ShipIntegrity")
+ if integrity != null:
+  for compartment: Dictionary in integrity.compartments:
+   var water_mass: float = float(compartment.water)*water_density
+   total += water_mass
+   weighted += Vector3(compartment.x,-0.8,compartment.z)*water_mass
+ var next_com := weighted/total
+ if absf(total-_last_trial_mass) < 0.01 and next_com.is_equal_approx(_last_trial_com): return
+ mass = total
+ center_of_mass = next_com
+ _last_trial_com = next_com
+ # Provisional box inertia, exposed mass/CG; replace with a surveyed mass ledger later.
+ inertia = Vector3(total*(26.2*26.2+4.5*4.5)/12.0,total*(26.2*26.2+6.9*6.9)/12.0,total*(6.9*6.9+4.5*4.5)/12.0)
+ _last_trial_mass = total
+
+func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
+ if not force_trial or hydro == null: return
+ trial_ticks += 1
+ var reset_cloth := _trial_requested
+ if _trial_requested:
+  var initial := state.transform
+  initial.basis = Basis(Vector3.UP,rotation.y)
+  initial.origin.y = hydro.equilibrium_height(mass+get_node("Mechanisms").cloth.canvas_mass,center_of_mass)+_height(initial.origin.x,initial.origin.z)
+  state.transform = initial
+  state.linear_velocity = Vector3.ZERO
+  state.angular_velocity = Vector3.ZERO
+  _trial_requested = false
+ var flow_at := Callable(ocean,"get_velocity") if ocean!=null and ocean.has_method("get_velocity") else Callable()
+ hydro_report = hydro.evaluate(state.transform,Callable(self,"_height"),center_of_mass,state.linear_velocity,state.angular_velocity,flow_at)
+ var cloth_load: Dictionary = get_node("Mechanisms").step_cloth(state.step,state.transform,wind_world,reef_fraction,state.transform*center_of_mass,reset_cloth)
+ rig_report = rig_pressure.evaluate(state.transform*center_of_mass,wind_world,state.linear_velocity,state.angular_velocity,reef_fraction,state.transform,cloth_load)
+ state.apply_central_force(hydro_report.buoyancy+hydro_report.drag+rig_report.force)
+ state.apply_torque(hydro_report.buoyancy_torque+hydro_report.drag_torque+rig_report.torque)
+ # A local-flow pressure approximation acts on the actual rudder angle, never raw helm input.
+ var mechanism := get_node_or_null("Mechanisms")
+ if mechanism != null:
+  var yard_acceleration: float = mechanism.step_loaded_braces(state.step,rig_report.brace_torque)
+  # Wind torque above is counted once. Internal brace forces cancel; subtract
+  # the relative yard's angular-momentum change from the assembled hull.
+  state.apply_torque(-state.transform.basis.y*mechanism.brace.inertia*yard_acceleration)
+  effective_rudder_angle = mechanism.actual_rudder_angle
+  var point := state.transform*Vector3(0,-1.0,13.45)
+  var flow := state.linear_velocity+state.angular_velocity.cross(point-state.transform*center_of_mass)
+  var local_flow := state.transform.basis.transposed()*flow
+  var force := state.transform.basis*rudder_water_force(local_flow,effective_rudder_angle)
+  state.apply_central_force(force)
+  var hinge_moment := (Vector3(0,0,0.30)).cross(state.transform.basis.transposed()*force).y
+  var steering: Dictionary = mechanism.step_loaded_steering(state.step,hinge_moment)
+  state.apply_torque((point-state.transform*center_of_mass).cross(force)-state.transform.basis.y*mechanism.rudder_inertia*steering.rudder_acceleration-state.transform.basis.z*mechanism.wheel_inertia*steering.wheel_acceleration)
+ if mechanism!=null and trial_ticks%15==0:
+  for line: Dictionary in mechanism.brace.lines:
+   if line.mode==1 and absf(line.pull)>0.1:
+    var brace_sample: Dictionary = mechanism.brace_report()
+    brace_sample["physics_tick"] = trial_ticks
+    print("APEX BRACE SAMPLE ",JSON.stringify(brace_sample))
+    break
+  for line: Dictionary in mechanism.cloth.lines:
+   if line.mode==1 and absf(line.pull)>0.1:
+    var cloth_sample: Dictionary = mechanism.cloth_report()
+    cloth_sample["physics_tick"] = trial_ticks
+    print("APEX CLOTH SAMPLE ",JSON.stringify(cloth_sample))
+    break
+ if trial_ticks == 120:
+  print("APEX FORCE SAMPLE ",JSON.stringify(force_trial_report()))
+
+func force_trial_report() -> Dictionary:
+ return {"mass_kg":mass,"submerged_m3":hydro_report.get("volume",0.0),"buoyancy_n":hydro_report.get("buoyancy",Vector3.ZERO).y,"position":[global_position.x,global_position.y,global_position.z],"speed_mps":linear_velocity.length(),"brace":get_node("Mechanisms").brace_report(),"cloth":get_node("Mechanisms").cloth_report(),"finite":global_position.is_finite() and linear_velocity.is_finite()}
+
+func rudder_water_force(local_velocity: Vector3,angle: float) -> Vector3:
+ var planar := Vector3(local_velocity.x,0,local_velocity.z)
+ var speed := planar.length()
+ if speed < 0.001: return Vector3.ZERO
+ var incoming := -planar/speed
+ var normal := Basis(Vector3.UP,angle)*Vector3.RIGHT
+ var incidence := clampf(incoming.dot(normal),-1.0,1.0)
+ var alpha := asin(incidence)
+ var lift_direction := (normal-incoming*incidence).normalized()
+ var dynamic_pressure := 0.5*water_density*speed*speed*rudder_area_m2
+ var lift := lift_direction*(1.1*sin(2.0*alpha))
+ var drag := incoming*(0.08+1.2*incidence*incidence)
+ # Lift is perpendicular to flow; drag dissipates body motion rather than adding energy.
+ return (lift+drag)*dynamic_pressure

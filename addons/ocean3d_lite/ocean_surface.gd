@@ -4,15 +4,20 @@ var storm_scale := 1.0
 var wetness := 0.0
 var wind_direction := Vector2(1.0,0.0)
 var clock := 0.0
+var wind_speed := 8.0
 var horizon_patches: Array[MeshInstance3D] = []
+func get_height(x: float,z: float) -> float:
+ return Ocean.get_height(x,z)
+func get_velocity(x: float,z: float) -> Vector3:
+ return Ocean.get_velocity(x,z)
 func wave_height(x: float,z: float,_t: float) -> float:
  return Ocean.get_height(x,z)
 func _ready() -> void:
  # Dense near-field water makes short waves visible on Android; distant water remains coarse.
  var plane := PlaneMesh.new()
  plane.size = Vector2(220,220)
- plane.subdivide_width = 300
- plane.subdivide_depth = 300
+ plane.subdivide_width = 180
+ plane.subdivide_depth = 180
  mesh = plane
  var mat := ShaderMaterial.new()
  mat.shader = preload("res://addons/ocean3d_lite/shaders/ocean.gdshader")
@@ -20,7 +25,7 @@ func _ready() -> void:
  # Four camera-centered outer patches cover the sea to the far horizon.
  # Their central opening prevents overlapping the high-detail near-water mesh.
  var outer: float = 3600.0
- var inner: float = 219.0
+ var inner: float = 220.0
  var strip: float = (outer-inner)*0.5
  for section in 4:
   var far_mesh := PlaneMesh.new()
@@ -45,9 +50,12 @@ func _process(_delta: float) -> void:
  var mat := material_override as ShaderMaterial
  if mat != null:
   mat.set_shader_parameter("waves",Ocean.waves_for_shader())
+  mat.set_shader_parameter("phases",Ocean.model.phases)
+  mat.set_shader_parameter("choppiness",Ocean.model.chop_for(Ocean.storm_scale))
   mat.set_shader_parameter("t",Ocean.time)
   mat.set_shader_parameter("storm_scale",Ocean.storm_scale)
   mat.set_shader_parameter("wind_direction",wind_direction)
+  mat.set_shader_parameter("wind_speed",wind_speed)
   mat.set_shader_parameter("storminess",wetness)
   var boat := get_parent().get_node_or_null("Boat") as Node3D
   if boat != null:

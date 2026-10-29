@@ -1,11 +1,31 @@
-# APEX Ship Engineering — measurable implementation checklist
+# APEX Ship Engineering — implementation history
+
+**Readiness authority:** [Immersive simulation prerequisites](SIMULATION_REALISM_REQUIREMENTS.md). The dated items below record partial construction and implementation; they do not certify whole-ship realism or VR training.
 
 **Goal:** A historically grounded, walkable, mechanically operable, damageable wooden sailing vessel. A naval hull is *not* simulated correctly by treating every plank as a free rigid body. In normal operation, connected structure behaves as an assembled rigid hull; impact/fracture detaches selected pieces. Watertight integrity is simulated via closed hull-shell topology and hydraulic compartments. Sailing forces must transfer through sails, rigging, spars, mast steps, hull, and rudder to the water.
 
 ## Rules for checking an item
-- [x] means **present in repository and confirmed by a successful Godot build**; it does not mean visually or physically validated unless the test says so.
+- [x] records only the named historical implementation scope with its explicit evidence. A build alone does not close a realism requirement; use the canonical readiness checklist for physical and device acceptance.
 - [ ] means absent, incomplete, or unverified. **Never mark complete from a design mockup, GitHub commit alone, or headless export.**
 - Each subsystem needs: dimensions/materials, coupling to neighboring systems, automated tests, rendered screenshots, Android performance tests.
+
+## October 29 membrane and clew-sheet trial
+
+The original lower fore sail now has a 35-node membrane, two unilateral sheets, bounded hand effort, loaded yard-head reactions and hull support forces from a momentum balance. Desktop/touch controls, authoritative co-op shape/line state and optional VR command adapters are integrated. [Model, tests and completion limits](docs/sail-membrane-trial.md) leave the other sails, full running rig, cloth contact, measured calibration and physical-device acceptance open.
+
+## October 28 force-driven trial
+
+The shared environment/co-op pass adds a sixteen-component seeded sea with matching rendered/physical data, relative water flow, procedural weather/FX, an authoritative WebSocket session and an experimental WebXR control adapter. Local numerical, native multiprocess and two-browser checks passed; [full status and completion gates](docs/shared-sailing-simulation.md) explicitly leave physical-device/headset validation, public hosting and complete mechanical fidelity open.
+
+The first loaded lower-foreyard brace circuit is also integrated: two ideal fixed-block leads, belaying pins, bounded hand effort, hauling/easing, free payout and cutting. Triangle pressure supplies the original yard's wind hinge torque. Native and local browser controls passed; [scope and evidence](docs/yard-brace-trial.md) distinguish this rigid-sail model from full cloth/running-rig dynamics.
+
+An opt-in rigid-body trial and the first loaded wheel/line/tiller/rudder mechanism are implemented. The wheel stays by explicit user preference. The first-person trainer now provides deck walking and gaze-relative movement as the test bed for reusable ship mechanics. Hull hydrostatics and steering transmission run independently of APEX's scene; [reuse contracts](docs/reusable-ship-mechanics.md) describe integration and remaining packaging work. See [physics foundation](docs/physics-foundation.md) for input adapters, native/browser evidence and provisional parameters. Do not mark full hydrodynamics, rope/cloth dynamics or VR training complete.
+
+## October 28 construction evidence
+
+The retained ship now has a tested geometry/articulation refit: station-fitted upperworks and decks, aligned collision, traversable quarterdeck/forecastle stairs, hinged original fittings, eight curved cloth/yard assemblies, mast steps, standing rigging and distinct shared materials. See [measured changes, renders and limits](docs/ship-refit.md). Native construction and Spatial QA tests passed locally; PR checks report the exact current build status. Physical Android verification remains pending.
+
+This is partial implementation of the items below, not completion of historical authentication, globally manifold assembled topology, dynamic cloth/ropes, fracture, hydrostatics or whole-ship access. In particular, the closed geometric reference envelope is not the prototype's current displacement/mass model.
 
 ## A. Audit of existing prototype (as of Oct 27, 2026)
 - [x] Imported pinnace visual model exists; 288 mesh objects restored by CI. Not verified as historically correct or manifold.
@@ -74,7 +94,7 @@
 - [ ] **Full boat:** Integrate proven slices into the scene, remove legacy direct-heading control, check Android build and visually inspect all angles.
 
 ## Architecture choice
-Use a **hybrid simulation**: intact vessel = compound connected assembly with aggregated mass/inertia and hydrostatic sampling; breakable structural graph = detachable bodies only when fractured; ropes = tensioned segments at controllable LOD; sails = deformable render mesh plus aerodynamic force surface. The current script's `freeze=true`, speed interpolation, and direct `rotation` assignment are a **temporary prototype**, NOT a real force-based vessel.
+Use a **hybrid simulation**: intact vessel = compound connected assembly with aggregated mass/inertia and hydrostatic sampling; breakable structural graph = detachable bodies only when fractured; ropes = tensioned segments at controllable LOD; sails = deformable render mesh plus aerodynamic force surface. The retained legacy prototype uses `freeze=true`, speed interpolation and direct rotation; it does not qualify as the force-based training profile. The current lesson enables the separate force trial. Neither mode closes the full realism gates without calibration and the remaining systems.
 
 ## Research note
 The Royal Museums Greenwich ship-plans collection documents the three orthographic views needed to reconstruct hull shape: profile, half-breadth and body plan. Source: https://www.rmg.co.uk/collections/our-collections-ship-plans-collection. Historical reconstruction must use an era-matched actual vessel plan, not approximate rectangular collision hulls. Godot Generic6DOFJoint3D can constrain linked moving rigid bodies, while SoftBody3D supports deformable simulation; both must be benchmarked in WebGL / Android before adoption.
@@ -87,3 +107,12 @@ The Royal Museums Greenwich ship-plans collection documents the three orthograph
 - Historic ship plans / naval architecture collections: https://www.rmg.co.uk/collections/ship-plans
 
 **Do not mark any untested project tasks complete.** Revisit this checklist after every functional integration and attach commit, automated test and frame evidence.
+
+### First-person instruction and controls
+
+- [x] Solo first-watch lesson uses real deck/stair traversal, fore-sheet haul/belay and solved rudder control; nine native suites pass.
+- [x] Five near-station desktop/touch controls address the same existing mechanisms as WebXR.
+- [x] VR wheel direction, nearby hand prompts and in-world lesson/readout adapter; controller math and station mapping tested natively.
+- [x] Original material detail maps and visible sail edge ropes/head lashings; fore-sail border follows deformation.
+- [ ] Headset comfort, controller bindings, physical reach, room-scale collision, haptics and sustained frame rate.
+- [ ] Under-way maneuvers, wind/trim lessons, assessment and shared instructor progression.

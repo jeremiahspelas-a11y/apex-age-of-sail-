@@ -1,16 +1,17 @@
 extends Node3D
-## Material recovery for imported ship meshes without embedded texture assets.
-## Geometry-based classification works even when Blender mesh names are generic.
+## Named fitting materials take precedence over shape guesses: spars are wood, not canvas.
 @export var weather_path: NodePath = NodePath("../../Weather")
-var surfaces: Array[StandardMaterial3D] = []
-var baseline_roughness: Array[float] = []
+const SURFACE_SHADER = preload("res://shaders/ship_surface.gdshader")
+const CANVAS_SHADER = preload("res://shaders/ship_canvas.gdshader")
+var surfaces: Array[ShaderMaterial] = []
 var classifications: Dictionary = {}
+var material_cache: Dictionary = {}
 
 func _ready() -> void:
- var visual := get_parent().get_node_or_null("HullVisual")
+ var visual := get_parent()
  if visual != null:
   _classify_tree(visual)
- print("APEX ship material classification: ", classifications)
+ print("APEX ship material classification: ",classifications)
 
 func _classify_tree(node: Node) -> void:
  if node is MeshInstance3D:
@@ -18,72 +19,76 @@ func _classify_tree(node: Node) -> void:
  for child in node.get_children():
   _classify_tree(child)
 
+func category_for(mi: MeshInstance3D) -> String:
+ var key := str(mi.name).to_lower()
+ if "square sail" in key or "canvas" in key or "cloth" in key:
+  return "canvas"
+ if "cannon" in key or "iron" in key or "anchor" in key or "metal" in key:
+  return "iron"
+ # Explicit structural names prevent the old thin-sheet/cord heuristics painting
+ # the bowsprit and helm white or treating masts and yards as rope.
+ for term in ["mast","yard","bowsprit","wheel","spoke","hub","rudder","stair","rail","bulwark","frame","coaming","beam","door","hatch"]:
+  if term in key: return "wood"
+ for term in ["rope","shroud","stay","rigging","line"]:
+  if term in key: return "rigging"
+ if "woodensides" in key: return "hull"
+ if "deck" in key or "plank" in key:
+  return "deck"
+ if "hull" in key or "keel" in key:
+  return "hull"
+ return "wood"
+
 func _assign_material(mi: MeshInstance3D) -> void:
- if mi.mesh == null:
-  return
- var key := (mi.name + " " + mi.get_parent().name).to_lower()
- var aabb := mi.mesh.get_aabb()
- var dimensions := aabb.size.abs() * mi.scale.abs()
- var dims := [dimensions.x, dimensions.y, dimensions.z]
- dims.sort()
- var smallest: float = max(dims[0], 0.0001)
- var middle: float = max(dims[1], 0.0001)
- var largest: float = dims[2]
- var thin_sheet := smallest < middle * 0.13 and middle > 0.6 and largest > 1.4
- var cord := middle < largest * 0.065 and largest > 1.2
- var category := "wood"
- if "sail" in key or "canvas" in key or "cloth" in key or (thin_sheet and dimensions.y > 1.0):
-  category = "canvas"
- elif "rope" in key or "rig" in key or "line" in key or "stay" in key or cord:
-  category = "rigging"
- elif "metal" in key or "cannon" in key or "iron" in key or "anchor" in key:
-  category = "iron"
- elif "deck" in key or "plank" in key:
-  category = "deck"
- elif "hull" in key or "keel" in key:
-  category = "hull"
- classifications[category] = int(classifications.get(category, 0)) + 1
- var mat := StandardMaterial3D.new()
- # Reuse mesh UVs with deterministic procedural grain, avoiding missing external textures.
- var noise := FastNoiseLite.new()
- noise.seed = 213 + int(classifications[category])
- noise.frequency = 0.035
- # The old white-on-black noise texture multiplied colors into near-black during nights.
- # Keep readable natural albedo; illumination still varies with sun, moon and storms.
- mat.albedo_texture = null
- mat.uv1_scale = Vector3(2.5,2.5,1.0)
- mat.metallic = 0.0
- mat.roughness = 0.76
- match category:
-  "canvas":
-   mat.albedo_color = Color(0.85,0.78,0.65)
-   mat.roughness = 0.96
-   mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-  "rigging":
-   mat.albedo_color = Color(0.41,0.31,0.20)
-   mat.roughness = 0.92
-  "iron":
-   mat.albedo_color = Color(0.16,0.18,0.19)
-   mat.metallic = 0.65
-   mat.roughness = 0.43
-  "deck":
-   mat.albedo_color = Color(0.45,0.28,0.15)
-  "hull":
-   mat.albedo_color = Color(0.39,0.25,0.15)
-  _:
-   mat.albedo_color = Color(0.48,0.32,0.19)
- # Per-surface override is more reliable than a translucent white overlay.
- for surface in mi.mesh.get_surface_count():
-  mi.set_surface_override_material(surface, mat)
- mi.material_override = mat
+ if mi.mesh == null: return
+ var category := category_for(mi)
+ classifications[category] = int(classifications.get(category,0))+1
+ var dimensions := mi.mesh.get_aabb().size.abs()
+ var axis := 2
+ if dimensions.y > dimensions.x and dimensions.y > dimensions.z: axis = 1
+ elif dimensions.x > dimensions.z: axis = 0
+ if category in ["deck","hull"]: axis = 2
+ var cache_key := category+str(axis)
+ var material: ShaderMaterial = material_cache.get(cache_key)
+ if material == null:
+  material = ShaderMaterial.new()
+  material.shader = CANVAS_SHADER if category == "canvas" else SURFACE_SHADER
+  material.set_shader_parameter("grain_axis",axis)
+  material.set_shader_parameter("timber_map",preload("res://assets/materials/timber_detail.png"))
+  material.set_shader_parameter("canvas_map",preload("res://assets/materials/canvas_detail.png"))
+  material.set_shader_parameter("hemp_map",preload("res://assets/materials/hemp_detail.png"))
+  var kind := 0
+  var color := Color(0.40,0.27,0.15)
+  match category:
+   "deck":
+    kind = 1
+    color = Color(0.49,0.36,0.23)
+   "hull":
+    kind = 2
+    color = Color(0.32,0.20,0.115)
+   "rigging":
+    kind = 3
+    color = Color(0.30,0.24,0.16)
+   "iron":
+    kind = 4
+    color = Color(0.11,0.13,0.14)
+   "canvas":
+    kind = 5
+    color = Color(0.76,0.71,0.59)
+  material.set_shader_parameter("surface_kind",kind)
+  material.set_shader_parameter("base_color",color)
+  material_cache[cache_key] = material
+  surfaces.append(material)
+ mi.material_override = material
  mi.material_overlay = null
- surfaces.append(mat)
- baseline_roughness.append(mat.roughness)
+ mi.set_meta("ship_material_category",category)
 
 func _process(_delta: float) -> void:
  var weather := get_node_or_null(weather_path)
  var wetness := 0.0
  if weather != null and weather.has_method("get_wetness"):
-  wetness = clampf(weather.get_wetness(), 0.0, 1.0)
- for i in surfaces.size():
-  surfaces[i].roughness = lerpf(baseline_roughness[i], maxf(0.18, baseline_roughness[i] * 0.55), wetness)
+  wetness = clampf(weather.get_wetness(),0.0,1.0)
+ var boat := get_parent()
+ var wind: Vector3 = boat.get("wind_world")
+ for material in surfaces:
+  material.set_shader_parameter("wetness",wetness)
+  material.set_shader_parameter("wind_strength",clampf(wind.length()/14.0,0.0,1.0))

@@ -1,6 +1,8 @@
 name: Export Godot Web
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 permissions:
@@ -8,7 +10,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: pages
+  group: pages-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   build:
@@ -56,24 +58,82 @@ jobs:
           if grep -E "SCRIPT ERROR:|SHADER ERROR:|Parse Error:|Failed to load script|Invalid call|Invalid access" godot-runtime.log; then echo "::error::Godot runtime errors"; exit 1; fi
           test -s web/index.wasm
           test -s web/index.pck
-      - name: Verify timber construction graph and frame geometry
+      - name: Verify Spatial QA interactions and God Mode state
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          s=Path('scripts/ship_structure.gd').read_text()
-          assert 'build_timber_skeleton()' in s, 'Ship construction not called'
-          assert 'func add_curved_frame(' in s, 'Curved ribs missing'
-          assert 'for station in 11:' in s, 'Frame stations missing'
-          assert 'var beam: float = 2.22 * (1.0 - 0.38*taper)' in s, 'Tapered hull stations missing'
-          assert 'member.position = pos' in s, 'Structural members not attached to local hull geometry'
-          assert '# build_hull_strakes(), build_end_closures(), build_keel_bottom() intentionally not invoked.' in s, 'Original hull preservation gate missing'
-          assert 'for band in 8:' in s, 'Expected eight plank bands per side'
-          assert 'mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)' in s, 'Continuous indexed hull surfaces missing'
-          assert 'build_end_closures()' in s, 'Hull end caps not built'
-          assert 'for end_z in [-10.9,10.9]:' in s, 'Expected bow and stern closures missing'
-          print('PASS: timber construction and curved station logic is present')
-          PY
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/spatial_qa_test.gd 2>&1 | tee spatial-qa-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" spatial-qa-test.log; then exit 1; fi
+          grep -q "APEX SPATIAL QA TEST PASS" spatial-qa-test.log
+      - name: Verify ship construction, articulation and walk routes
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/ship_construction_test.gd 2>&1 | tee ship-construction-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" ship-construction-test.log; then exit 1; fi
+          grep -q "APEX SHIP CONSTRUCTION TEST PASS" ship-construction-test.log
+      - name: Verify force-driven hull and loaded steering transmission
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/force_trial_test.gd 2>&1 | tee force-trial-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" force-trial-test.log; then exit 1; fi
+          grep -q "APEX FORCE TRIAL TEST PASS" force-trial-test.log
+      - name: Verify first-person deck trainer
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/trainer_test.gd 2>&1 | tee trainer-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" trainer-test.log; then exit 1; fi
+          grep -q "APEX TRAINER TEST PASS" trainer-test.log
+      - name: Verify first-watch lesson, deck stations and VR affordances
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/sailing_lesson_test.gd 2>&1 | tee sailing-lesson-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" sailing-lesson-test.log; then exit 1; fi
+          grep -q "APEX SAILING LESSON TEST PASS" sailing-lesson-test.log
+      - name: Verify responsive trainer UI and touch ownership
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/trainer_ui_test.gd 2>&1 | tee trainer-ui-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" trainer-ui-test.log; then exit 1; fi
+          grep -q "APEX TRAINER UI TEST PASS" trainer-ui-test.log
+      - name: Verify loaded foreyard braces and panel pressure
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/yard_brace_test.gd 2>&1 | tee yard-brace-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" yard-brace-test.log; then exit 1; fi
+          grep -q "APEX YARD BRACE TEST PASS" yard-brace-test.log
+      - name: Verify deforming fore sail and clew-sheet load transfer
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/sail_membrane_test.gd 2>&1 | tee sail-membrane-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" sail-membrane-test.log; then exit 1; fi
+          grep -q "APEX SAIL MEMBRANE TEST PASS" sail-membrane-test.log
+      - name: Verify flat sail, wind cycle and spar contact
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/sail_contact_test.gd 2>&1 | tee sail-contact-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" sail-contact-test.log; then exit 1; fi
+          grep -q "APEX SAIL CONTACT TEST PASS" sail-contact-test.log
+      - name: Verify shared sea and procedural weather
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/environment_test.gd 2>&1 | tee environment-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" environment-test.log; then exit 1; fi
+          grep -q "APEX ENVIRONMENT TEST PASS" environment-test.log
+      - name: Verify optional VR input and desktop fallback
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/vr_input_test.gd 2>&1 | tee vr-input-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" vr-input-test.log; then exit 1; fi
+          grep -q "APEX VR INPUT TEST PASS" vr-input-test.log
+      - name: Verify closing WebSocket send guard
+        run: |
+          set -euo pipefail
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/coop_transport_test.gd 2>&1 | tee coop-transport-test.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|ERROR:" coop-transport-test.log; then exit 1; fi
+          grep -q "APEX COOP TRANSPORT TEST PASS" coop-transport-test.log
+      - name: Verify co-op host, clients and stalled receiver
+        run: python3 tests/run_coop_test.py ./Godot_v4.7.2-stable_linux.x86_64
       - name: Browser graphics smoke test and screenshots
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           npm install --no-save playwright@1.58.2
@@ -82,52 +142,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libnss3 libnspr4 libatk-bridge2.0-0t64 libxkbcommon0 libgbm1 libasound2t64
           mkdir -p visual-qa
-          python3 -m http.server 8765 --directory web > visual-qa/server.log 2>&1 &
-          SERVER_PID=$!
-          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
-          node <<'JS'
-          const { chromium, devices } = require('playwright');
-          (async () => {
-            const browser = await chromium.launch({ headless: true, args: ['--enable-webgl', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-            const context = await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 960, height: 540 }, deviceScaleFactor: 1 });
-            const page = await context.newPage();
-            const errors = [];
-            page.on('pageerror', e => errors.push('PAGE: ' + e.message));
-            page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
-            await page.goto('http://127.0.0.1:8765/index.html', { waitUntil: 'domcontentloaded', timeout: 45000 });
-            await page.waitForTimeout(16000);
-            await page.screenshot({ path: 'visual-qa/initial.png' });
-            await page.waitForTimeout(5000);
-            await page.screenshot({ path: 'visual-qa/after-5s.png' });
-            // Touch-control regression: enable fly mode and exercise both sticks concurrently.
-            const centerLeft = { x: 92, y: 440 };
-            const centerRight = { x: 868, y: 440 };
-            await page.mouse.click(80, 80);
-            await page.waitForTimeout(250);
-            const client = await page.context().newCDPSession(page);
-            const touch = async (type, points) => client.send('Input.dispatchTouchEvent', {
-              type, touchPoints: points.map(p => ({ x:p.x, y:p.y, id:p.id, radiusX:10, radiusY:10, force:1 }))
-            });
-            const left = { id:1, x:92, y:440 };
-            const right = { id:2, x:868, y:440 };
-            await touch('touchStart',[left]);
-            await touch('touchStart',[left,right]);
-            await touch('touchMove',[{...left,y:390},{...right,x:915,y:415}]);
-            await page.waitForTimeout(1200);
-            await page.screenshot({ path: 'visual-qa/fly-thumbsticks-held.png' });
-            await touch('touchEnd',[]);
-            const multitouch = {ok:true, inputMethod:'Chromium CDP dispatchTouchEvent', twoFingersHeldMs:1200};
-            await page.waitForTimeout(300);
-            await page.screenshot({ path: 'visual-qa/fly-thumbsticks.png' });
-            require('fs').writeFileSync('visual-qa/touch-test.json', JSON.stringify(multitouch,null,2));
-            if (!multitouch.ok) throw new Error('Dual touch simulation could not run');
-
-            const canvas = await page.locator('canvas').count();
-            require('fs').writeFileSync('visual-qa/report.json', JSON.stringify({ canvas, errors }, null, 2));
-            await browser.close();
-            if (!canvas || errors.some(e => /WebGL|shader|SCRIPT ERROR|uncaught|Failed to load/i.test(e))) process.exitCode = 1;
-          })().catch(e => { console.error(e); process.exitCode = 1; });
-          JS
+          node tests/browser_graphics.cjs
+      - name: Verify two browser clients share the host ship
+        timeout-minutes: 6
+        run: node tests/browser_coop.cjs
+      - name: Verify browser clew-sheet controls and deformed sail
+        timeout-minutes: 5
+        run: node tests/browser_cloth.cjs
+      - name: Verify walk-up first-watch browser lesson
+        timeout-minutes: 9
+        run: node tests/browser_lesson.cjs
       - name: Publish visible QA evidence with the game
         if: success()
         run: |
@@ -146,9 +170,11 @@ jobs:
           name: apex-godot-web
           path: web/
       - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
         with:
           path: web/
   deploy:
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:

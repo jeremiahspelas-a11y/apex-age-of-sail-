@@ -1,48 +1,72 @@
 extends Node3D
 ## Convex compound collision volumes; walkable decks with central hatch gaps.
+const Refit = preload("res://scripts/ship_refit.gd")
 @onready var boat: RigidBody3D = get_parent() as RigidBody3D
 func _ready() -> void:
- add_box("Keel",Vector3(1.0,0.8,23.0),Vector3(0,-1.8,0))
- for side in [-1.0,1.0]:
-  add_box("HullSide",Vector3(.55,2.5,20.0),Vector3(side*2.6,-.5,0))
-  add_box("Bulwark",Vector3(.25,1.1,18.0),Vector3(side*2.85,1.05,0))
-  add_box("DeckWing",Vector3(2.05,.2,19.8),Vector3(side*1.73,.35,0))
-  add_box("LowerDeckWing",Vector3(2.05,.2,17.0),Vector3(side*1.73,-1.5,0))
- for entry in [[-8.3,3.6],[-1.0,4.0],[6.0,7.2]]:
-  var z: float = entry[0]
-  var length: float = entry[1]
-  add_box("DeckCenter",Vector3(1.4,.2,length),Vector3(0,.35,z))
- for entry in [[-6.7,3.2],[-1.0,3.6],[5.4,5.0]]:
-  var z: float = entry[0]
-  var length: float = entry[1]
-  add_box("LowerCenter",Vector3(1.4,.2,length),Vector3(0,-1.5,z))
- add_box("Quarterdeck",Vector3(4.8,.25,5.2),Vector3(0,1.5,9))
- add_box("Forecastle",Vector3(3.8,.25,2.9),Vector3(0,1.2,-10))
- for z in [-4.0,2.0]:
-  var ramp := CollisionShape3D.new()
-  var box := BoxShape3D.new()
-  box.size=Vector3(1.0,.16,3.5)
-  ramp.shape=box
-  ramp.position=Vector3(0,-.5,z+1.1)
-  ramp.rotation.x=-.43
-  boat.add_child.call_deferred(ramp)
- # Colliders follow the measured original GLB mast positions and lengths.
+ Refit.apply(boat)
+ _build_walk_surfaces()
+ # Colliders retain measured masthead positions and extend down to the keelson step.
  # Foremast z=-6.5 (y center 10.15, height 17.7), mainmast z=3.1
  # (y center 11.65, height 20.7), mizzen z=10.8 (y center 7.65, height 12.7).
  for mast in [[-6.5,10.15,17.7,0.5],[3.1,11.65,20.7,0.5],[10.8,7.65,12.7,0.36]]:
   var shape := CylinderShape3D.new()
   shape.radius = mast[3] * 0.5
-  shape.height = mast[2]
-  add_shape("Mast",shape,Vector3(0,mast[1],mast[0]))
+  shape.height = mast[1]+mast[2]*0.5-Refit.MAST_STEP_Y
+  add_shape("Mast",shape,Vector3(0,Refit.MAST_STEP_Y+shape.height*0.5,mast[0]))
  # Remove the overlapping obsolete fairing-study hull ONLY when the newer
  # V6 closed hull is present. This preserves the original late-period ship rig.
- _prefer_closed_original_hull()
  _audit_original_projection_meshes()
- # Construction pass 1: coherent ship-interior frame, beam and keelson skeleton.
+ # Reuse the refitted original frames; add their floor, beam and keelson supports.
  # Visual members belong to the vessel transform rather than world-space decoration.
  build_timber_skeleton()
  # Preserve original GLB exterior; second procedural hull used incorrect shorter dimensions.
  # build_hull_strakes(), build_end_closures(), build_keel_bottom() intentionally not invoked.
+
+func _build_walk_surfaces() -> void:
+ # The former 0.45 m deck collider sat 0.68 m below the visible deck.
+ var coarse := boat.get_node_or_null("HullCollision") as CollisionShape3D
+ if coarse != null: coarse.set_deferred("disabled",true)
+ _deck_collision("MainDeck",-13.0,13.2,Refit.MAIN_BOTTOM,Refit.MAIN_TOP,2.95,Refit.HATCHES)
+ _deck_collision("Forecastle",-12.9,-8.45,1.84,Refit.FORE_TOP,2.05,[Refit.FORE_STAIR])
+ _deck_collision("Quarterdeck",6.7,11.8,2.14,Refit.QUARTER_TOP,2.65,Refit.quarter_openings(boat))
+ _deck_collision("LowerDeck",-11.15,9.70,-1.20,-1.07,2.325,[])
+ _stair_ramp("QuarterdeckStairs",Vector3(0,Refit.MAIN_TOP,6.2),Vector3(0,Refit.QUARTER_TOP,9.7),1.4)
+ _stair_ramp("ForecastleStairs",Vector3(0,Refit.MAIN_TOP,-7.44),Vector3(0,Refit.FORE_TOP,-9.14),1.3)
+ add_box("ForecastleLanding",Vector3(1.4,0.16,0.56),Vector3(0,Refit.FORE_TOP-0.08,-9.42))
+ for side in [-1.0,1.0]:
+  for i in range(Refit.STATIONS.size()-1):
+   var a: float = Refit.STATIONS[i]
+   var b: float = Refit.STATIONS[i+1]
+   var points := PackedVector3Array()
+   for z in [a,b]:
+    var x: float = side*Refit.deck_width(z)
+    for xx in [x,x-side*0.16]:
+     points.append(Vector3(xx,-1.30,z))
+     points.append(Vector3(xx,Refit.rail_deck(z)+0.68,z))
+   var shape := ConvexPolygonShape3D.new()
+   shape.points = points
+   add_shape("Bulwark_%s_%d"%[str(side),i],shape,Vector3.ZERO)
+
+func _deck_collision(label: String,start: float,end: float,bottom: float,top: float,limit: float,holes: Array) -> void:
+ var index := 0
+ for cell: Dictionary in Refit.deck_cells(start,end,limit,holes,bottom):
+  var points := PackedVector3Array()
+  for y in [bottom,top]:
+   points.append_array(PackedVector3Array([Vector3(cell.l0,y,cell.z0),Vector3(cell.r0,y,cell.z0),Vector3(cell.l1,y,cell.z1),Vector3(cell.r1,y,cell.z1)]))
+  var shape := ConvexPolygonShape3D.new()
+  shape.points = points
+  add_shape(label+str(index),shape,Vector3.ZERO)
+  index += 1
+
+func _stair_ramp(label: String,start: Vector3,end: Vector3,width: float) -> void:
+ var collision := CollisionShape3D.new()
+ collision.name = label+"Collider"
+ var shape := BoxShape3D.new()
+ shape.size = Vector3(width,0.10,start.distance_to(end))
+ collision.shape = shape
+ collision.position = (start+end)*0.5-Vector3(0,0.05,0)
+ collision.rotation.x = -atan2(end.y-start.y,end.z-start.z)
+ boat.add_child.call_deferred(collision)
 
 func build_timber_skeleton() -> void:
  var material := StandardMaterial3D.new()
@@ -54,19 +78,19 @@ func build_timber_skeleton() -> void:
  # This is a procedural hull-shape prototype, NOT a surveyed historical lines plan.
  for station in 11:
   var z: float = -9.5 + float(station)*1.9
-  var taper: float = pow(absf(z)/11.5,1.5)
-  var beam: float = 2.22 * (1.0 - 0.38*taper)
-  var deck_y: float = 0.32 + 0.22*taper
+  var beam: float = Refit.deck_width(z)-0.20
+  var deck_y: float = Refit.MAIN_BOTTOM-0.12
   add_timber("Floor_%02d" % station,Vector3(beam*1.8,0.24,0.21),Vector3(0,-1.2,z),material)
-  for side in [-1,1]:
-   var contour := PackedVector3Array()
-   for level in 9:
-    var t: float = float(level)/8.0
-    var x: float = float(side) * beam * (0.35 + 0.65*sin(t*PI*0.5))
-    var y: float = lerpf(-1.35,deck_y,t)
-    contour.append(Vector3(x,y,z))
-   add_curved_frame("Rib_%02d_%s" % [station,"P" if side < 0 else "S"],contour,0.14,material)
-  add_timber("DeckBeam_%02d" % station,Vector3(beam*1.98,0.23,0.24),Vector3(0,deck_y,z),material)
+  var hatch_half := 0.0
+  for opening: Rect2 in Refit.HATCHES:
+   if z > opening.position.y-0.12 and z < opening.end.y+0.12:
+    hatch_half = maxf(hatch_half,opening.size.x*0.5+0.10)
+  if hatch_half > 0.0:
+   var length := beam*0.99-hatch_half
+   for side in [-1.0,1.0]:
+    add_timber("HatchDeckBeam_%02d_%s"%[station,str(side)],Vector3(length,0.23,0.24),Vector3(side*(hatch_half+length*0.5),deck_y,z),material)
+  else:
+   add_timber("DeckBeam_%02d"%station,Vector3(beam*1.98,0.23,0.24),Vector3(0,deck_y,z),material)
 
  for side in [-1,1]:
   add_timber("Stringer_%s" % ["P" if side < 0 else "S"],Vector3(0.2,0.22,20.0),Vector3(float(side)*2.18,-0.46,0),material)

@@ -1,0 +1,38 @@
+{
+  "scope": "Measurement of the existing isolated 35-node fore-canvas model. Cut sheets, fixed supports, zero ambient wind, normal gravity. No cloth contact or calibrated fabric/reference validation. Does not close SAIL-01.",
+  "implementation_commit": "4c9a3a20b58dde455a4f7f8cc47ab0e3ce40fe51",
+  "membrane_blob_sha": "8c84cdc8aa06bd9799982fe7ec3b7d801c10d4ac",
+  "engine": "Godot 4.7.2.stable.official.ed1daf0bf",
+  "sample_step_s": 0.016666666666666666,
+  "duration_s": 15,
+  "samples": [
+    {
+      "center": "(-0.000002, -1.38736, -0.454439)",
+      "clew": "(-2.420078, -2.800305, -0.549716)",
+      "kinetic_j": 0.0112563780833925,
+      "max_depth_m": 0.549974501132965,
+      "seconds": 0.0166666666666667
+    },
+    {
+      "center": "(-0.002512, -1.453372, 0.029365)",
+      "clew": "(-2.417442, -2.83394, 0.312156)",
+      "kinetic_j": 0.677459930907941,
+      "max_depth_m": 0.312156111001968,
+      "seconds": 1.0
+    },
+    {
+      "center": "(-0.002495, -1.450273, -0.141238)",
+      "clew": "(-2.422914, -2.854187, -0.024131)",
+      "kinetic_j": 0.0352935421319184,
+      "max_depth_m": 0.154092147946358,
+      "seconds": 3.0
+    },
+    {
+      "center": "(-0.002173, -1.455438, -0.075979)",
+      "clew": "(-2.423436, -2.852601, 0.091398)",
+      "kinetic_j": 5.90311972609382e-07,
+      "max_depth_m": 0.141894653439522,
+      "seconds": 15.0
+    }
+  ]
+}
